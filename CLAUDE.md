@@ -116,7 +116,6 @@ This is a **planned but not yet implemented** MCP server with the following inte
 - `prd.md` - Product requirements document  
 - `spec.md` - Technical specifications
 - `plan.md` - **詳細執行計劃（必讀）**
-- `DEVELOPMENT_PRINCIPLES.md` - Development methodology (now also in .cursor/rules/)
 - `.cursor/rules/` - Code philosophy, development principles, and commit standards
 
 ### Implementation Guidance
