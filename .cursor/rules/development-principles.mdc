@@ -1,0 +1,186 @@
+---
+description: Development methodology and principles for rapid, effective software delivery with continuous learning and improvement
+globs:
+alwaysApply: true
+---
+
+# Development Principles for Smart Weather MCP Server
+
+## Core Philosophy
+
+These principles ensure rapid, efficient delivery of valuable software while learning and continuously improving from each experience.
+
+## 🚀 Speed & Delivery
+
+### 1. **Deploy Fast First**
+- Remove time constraints, don't set week limits
+- Deploy simple features first, iterate quickly
+- Add features incrementally instead of waiting for complete versions
+
+### 2. **Small Batch Development**
+- Each step must be small and verifiable
+- Deploy after adding just one small feature
+- Avoid large integrations to reduce risk
+
+### 3. **Incremental Value Delivery**
+- Priority: features that immediately demonstrate value
+- Start with MVP, enhance gradually
+- Each phase must operate independently
+
+### 4. **Pragmatism Over Perfection**
+- "Working" is more important than "perfect"
+- 80/20 rule - achieve 80% effect with 20% effort
+- Avoid over-engineering
+
+## ⚠️ Risk Management
+
+### 5. **Critical Risk First**
+- Validate most critical parts earliest
+- Technical feasibility must be confirmed first
+- Test uncertain integration points early
+
+### 6. **Fail Fast Principle**
+- Discover non-viable approaches quickly
+- Set time boxes - switch approaches when exceeded
+- Don't waste time on dead ends
+- Failure is learning opportunity, not setback
+
+### 7. **Minimize Assumptions**
+- Don't assume any technology will definitely work
+- Don't assume integrations will be smooth
+- Validate every assumption
+
+### 8. **Reversible Design**
+- Every decision must be rollback-able
+- Keep old deployment versions
+- Data structure changes need migration plans
+
+## 🔍 Validation & Learning
+
+### 9. **Continuous Validation**
+- Every version must run in actual Cloud Run + n8n environment
+- Test in real environment, not just locally
+- Find and solve problems early
+
+### 10. **Clear Validation Methods**
+- Each step needs clear testing approach
+- Success criteria must be quantifiable
+- Have backup plans for failures
+
+### 11. **Continuous Learning & Adjustment**
+- Record "what was learned" after each step
+- Difficult experiences are more valuable - document them specially
+- Adjust subsequent approaches based on learning
+- Maintain `LESSONS_LEARNED.md` with continuous updates
+
+### 12. **Problems Before Solutions**
+- First confirm "why are we doing this"
+- Understanding problems is more important than rushing to code
+- If problem definition changes, solutions must change too
+
+## 📝 Documentation & Communication
+
+### 13. **Clear Challenges & Questions**
+- List expected challenges for each phase upfront
+- Specially note issues that block progress if unclear
+- Prepare backup plans
+
+### 14. **Real-time Documentation**
+- Record pitfalls immediately in `TROUBLESHOOTING.md`
+- Save working configurations in `WORKING_CONFIGS.md`
+- Leave breadcrumbs for future self and team
+
+### 15. **Transparent Communication**
+- Speak up when stuck
+- Ask questions when uncertain
+- Progress updates must be honest
+
+### 16. **User Perspective**
+- Regularly think from n8n user perspective
+- API responses should be friendly and clear
+- Error messages must be helpful
+
+## 🔧 Technical Management
+
+### 17. **Keep Plans Flexible**
+- Plans are guidance, not dogma
+- Adjust priorities based on actual situations
+- Be brave to change when finding better paths
+
+### 18. **Technical Debt Awareness**
+- Record every "temporary solution" and technical debt
+- Clearly mark `TODO` and `FIXME`
+- Regular review whether technical debt needs paying
+
+### 19. **Observability First**
+- Add logging from day one
+- Errors need clear error messages
+- Debugging convenience more important than perfection
+
+### 20. **Minimize Dependencies**
+- Don't add packages if not needed
+- Use standard library instead of third-party when possible
+- Every dependency is potential risk
+
+### 21. **Complexity Budget**
+- Every feature adds complexity
+- Regular evaluation of worthiness
+- Simple systems are easier to maintain
+
+### 22. **Implementation Consistency**
+- Use same approaches for same problems
+- Establish and maintain code conventions and patterns
+- Must confirm with humans before changing existing conventions
+- Record design decisions in `DESIGN_DECISIONS.md`
+- New developers should learn correct approaches from existing code
+
+## 💰 Resource & Cost Management
+
+### 23. **Cost Awareness**
+- Record costs for each service (Cloud Run, API calls)
+- Prioritize free tier usage
+- Optimize costs before scaling
+
+### 24. **Resource Awareness**
+- Consider development time costs
+- Balance "build ourselves" vs "use existing"
+- Time is also a resource
+
+## 🔒 Security & Quality
+
+### 25. **Security Fundamentals**
+- Keep secrets out of version control from day one
+- Input validation from the beginning
+- Don't wait until the end to add security
+
+## 🎉 Motivation & Mindset
+
+### 26. **Celebrate Small Wins**
+- Every successful deployment is worth recording
+- Build confidence and momentum
+- Share progress (even if small)
+
+## How to Use These Principles
+
+1. **Pre-planning Checklist**: Review these principles before each phase
+2. **Review Reference**: When facing difficulties, check if any principle was violated
+3. **Learning Updates**: Add new important principles discovered from experience
+4. **Team Consensus**: Ensure all participants understand and agree with these principles
+
+## Priority Order
+
+When principles conflict, reference this order:
+
+1. **Speed & Delivery** - Rapidly validate ideas
+2. **Risk Management** - Avoid big disasters
+3. **Validation & Learning** - Ensure doing the right thing
+4. **Other Principles** - Optimize based on the above three
+
+## Implementation Guidelines
+
+- **Every change should be deployable**: Don't accumulate changes
+- **Test in target environment**: Cloud Run + n8n, not just local
+- **Document lessons learned**: Especially from failures and unexpected challenges
+- **Keep complexity under control**: Simple solutions that work beat complex perfect ones
+- **Validate assumptions early**: Don't build on unverified assumptions
+- **Reversible decisions**: Design for rollback and iteration

@@ -32,11 +32,11 @@
     "n8n",
     "multi-provider"
   ],
-  "author": "Your Name",
+  "author": "Justin Lee",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/smart-weather-mcp-server.git"
+    "url": "https://github.com/lis186/smart-weather-mcp-server.git"
   },
   "engines": {
     "node": ">=18.0.0"
