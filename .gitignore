@@ -1,0 +1,7 @@
+# Cursor and SpecStory directories
+.cursor/**
+.specstory/**
+.claude/**
+
+# Environment variables
+.env
