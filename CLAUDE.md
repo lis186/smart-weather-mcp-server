@@ -109,6 +109,13 @@ This is a **planned but not yet implemented** MCP server with the following inte
 
 ⚠️ **IMPORTANT**: This repository contains planning documents but **NO SOURCE CODE YET**. The codebase structure outlined in the documentation is planned but not implemented.
 
+### 📋 執行計劃與進度追蹤
+
+- **主要執行計劃**: `plan.md` - 包含 5 階段詳細實作計劃
+- **學習日誌**: `LEARNING_LOG.md` - 記錄技術決策和實作經驗
+- **目前階段**: 尚未開始實作階段
+- **下一步**: 開始階段 1 - 基礎架構建立
+
 ### Existing Files
 
 - `package.json` - Basic project configuration with dependencies
@@ -201,21 +208,64 @@ When working on this project, use these specific MCP servers for their designate
 
 ## Working with This Repository
 
+### Implementation Guidelines
+
+**IMPORTANT**: 實作時必須參考並持續更新 `plan.md` 中的進度追蹤。
+
+#### 階段性實作步驟
+
+1. **開始新階段前**：
+   - 檢視 `plan.md` 中的階段目標和驗收標準
+   - 更新階段狀態為 "🔄 進行中"
+   - 確認關鍵風險和緩解策略
+
+2. **實作過程中**：
+   - 遵循 development-principles.mdc 中的原則
+   - 記錄重要技術發現到 `LEARNING_LOG.md`
+   - 遇到阻礙時及時調整計劃
+   - 保持小批次開發和快速驗證
+
+3. **階段完成後**：
+   - 更新 `plan.md` 中的階段狀態為 "✅ 已完成"
+   - 記錄關鍵學習要點和計劃調整
+   - 評估對後續階段的影響
+   - 更新下階段準備事項
+
+#### 進度追蹤機制
+
+每個里程碑完成後，Claude 必須：
+1. 更新 `plan.md` 中對應的進度狀態
+2. 在 `LEARNING_LOG.md` 記錄技術決策和發現
+3. 識別影響後續階段的關鍵學習
+4. 主動調整計劃以反映新的理解
+
+#### 實作優先順序
+
+基於 development-principles.mdc：
+1. **快速部署優先** - 每階段都要能獨立部署驗證
+2. **關鍵風險優先** - 優先處理技術可行性驗證
+3. **小批次開發** - 保持功能增量可驗證
+4. **持續學習** - 記錄並應用每階段的學習成果
+
 ### When Adding New Features
 
-1. Use TodoWrite tool to plan implementation steps
-2. Follow the 3-tool limit from MCP design philosophy
-3. Ensure all tools use `query` + `context` parameters  
-4. Test in actual Cloud Run environment, not just locally
-5. Run lint/typecheck commands if they exist
+1. 檢查 `plan.md` 確認功能是否在計劃範圍內
+2. Use TodoWrite tool to plan implementation steps
+3. Follow the 3-tool limit from MCP design philosophy
+4. Ensure all tools use `query` + `context` parameters  
+5. Test in actual Cloud Run environment, not just locally
+6. Run lint/typecheck commands if they exist
+7. 更新 `plan.md` 和 `LEARNING_LOG.md` 記錄進度
 
 ### When Making Changes
 
 1. Read existing documentation first to understand the vision
-2. Follow the development principles for speed and validation
-3. Keep changes small and deployable
-4. Update documentation if architecture changes
-5. Test Cloud Run deployment after significant changes
+2. 參考 `plan.md` 中的當前階段目標
+3. Follow the development principles for speed and validation
+4. Keep changes small and deployable
+5. Update documentation if architecture changes
+6. Test Cloud Run deployment after significant changes
+7. 記錄重要決策和學習要點
 
 ### Error Handling Strategy
 
