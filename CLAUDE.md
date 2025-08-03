@@ -122,20 +122,39 @@ This is a **planned but not yet implemented** MCP server with the following inte
 - `README.md` - Comprehensive project documentation
 - `prd.md` - Product requirements document  
 - `spec.md` - Technical specifications
-- `plan.md` - **新增** 詳細執行計劃與進度追蹤
-- `LEARNING_LOG.md` - **新增** 實作學習日誌
+- `plan.md` - **詳細執行計劃（必讀）**
 - `.cursor/rules/` - Code philosophy, development principles, and commit standards
 
-### Next Steps for Implementation (參考 plan.md)
+### Implementation Guidance
 
-**階段 1: 基礎架構建立 (預計 3 天)**
-1. Create `src/` directory structure
-2. Implement Express server with Cloud Run health checks
-3. Set up MCP SDK with SSE transport
-4. 建立基礎 Dockerfile 與部署腳本
-5. 驗證 Cloud Run 部署可行性
+**⚠️ 實作時必須參考並持續更新 `plan.md` 中的進度**
 
-完整的實作步驟請參考 `plan.md` 中的詳細規劃。
+`plan.md` 包含：
+- 基於 development-principles.mdc 制定的階段性執行計劃
+- 關鍵風險識別和緩解策略
+- 具體的驗收標準和監控指標
+- 每個階段的預期挑戰和驗證方式
+
+### Implementation Steps (參考 plan.md 階段規劃)
+
+**階段 1: 核心基礎建設** (關鍵風險優先)
+1. 建立專案結構和 TypeScript 配置
+2. 實現 MCP Server 基礎框架
+3. 整合 Secret Manager
+
+**階段 2: Gemini AI 解析核心** (關鍵風險優先)  
+4. 實現 Gemini AI 查詢解析
+5. 建立智能路由器
+
+**階段 3-5: 參考 plan.md 完整階段規劃**
+
+### Progress Tracking
+
+實作過程中：
+1. **更新 plan.md 中的核取方塊** - 標記完成的任務
+2. **記錄學習要點** - 在 plan.md 相應章節記錄遇到的技術難題和解決方案
+3. **調整時間預估** - 根據實際情況更新後續階段預估
+4. **更新風險評估** - 發現新風險時更新 plan.md 風險管理章節
 
 ## MCP Server Usage Guidelines
 
