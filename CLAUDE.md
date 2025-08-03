@@ -115,7 +115,6 @@ This is a **planned but not yet implemented** MCP server with the following inte
 - `README.md` - Comprehensive project documentation
 - `prd.md` - Product requirements document  
 - `spec.md` - Technical specifications
-- `DEVELOPMENT_PRINCIPLES.md` - Development methodology (now also in .cursor/rules/)
 - `.cursor/rules/` - Code philosophy, development principles, and commit standards
 
 ### Next Steps for Implementation
