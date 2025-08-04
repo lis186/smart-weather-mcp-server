@@ -13,7 +13,12 @@
     "start:stdio": "node dist/unified-server.js --mode=stdio",
     "start:http": "node dist/unified-server.js --mode=http",
     "start:unified": "node dist/unified-server.js",
-    "test": "jest"
+    "test": "jest",
+    "test:unit": "jest --testPathPattern=tests/unit",
+    "test:integration": "jest --testPathPattern=tests/integration",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:verbose": "JEST_VERBOSE=true jest --verbose"
   },
   "dependencies": {
     "@google-cloud/secret-manager": "^6.1.0",
