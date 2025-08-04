@@ -1,6 +1,6 @@
-import { SmartWeatherMCPServer } from '../../../src/core/mcp-server.js';
-import { ToolHandlerService } from '../../../src/services/tool-handlers.js';
-import { WeatherQuery } from '../../../src/types/index.js';
+import { SmartWeatherMCPServer } from '../../../src/core/mcp-server';
+import { ToolHandlerService } from '../../../src/services/tool-handlers';
+import { WeatherQuery } from '../../../src/types/index';
 
 describe('SmartWeatherMCPServer', () => {
   let server: SmartWeatherMCPServer;

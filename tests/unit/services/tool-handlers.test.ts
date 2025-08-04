@@ -1,6 +1,7 @@
-import { ToolHandlerService } from '../../../src/services/tool-handlers.js';
-import { WeatherQuery } from '../../../src/types/index.js';
+import { ToolHandlerService } from '../../../src/services/tool-handlers';
+import { WeatherQuery } from '../../../src/types/index';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 describe('ToolHandlerService', () => {
   describe('getToolDefinitions', () => {
@@ -111,11 +112,9 @@ describe('ToolHandlerService', () => {
     it('should handle malformed query arguments gracefully', async () => {
       const malformedQuery = { not_a_query: 'test' };
 
-      const result = await ToolHandlerService.handleToolCall('search_weather', malformedQuery);
-
-      // Should not crash, should handle gracefully
-      expect(result.content).toHaveLength(1);
-      expect(result.content[0].type).toBe('text');
+      // Should throw validation error for missing query parameter
+      await expect(ToolHandlerService.handleToolCall('search_weather', malformedQuery))
+        .rejects.toThrow('Query parameter is required and must be a string');
     });
   });
 
@@ -140,13 +139,13 @@ describe('ToolHandlerService', () => {
     });
 
     it('should set up handlers that can be called', async () => {
-      let listToolsHandler: Function;
-      let callToolHandler: Function;
+      let listToolsHandler: Function | undefined;
+      let callToolHandler: Function | undefined;
 
       mockServer.setRequestHandler.mockImplementation((schema, handler) => {
-        if (schema.toString().includes('list')) {
+        if (schema === ListToolsRequestSchema) {
           listToolsHandler = handler;
-        } else {
+        } else if (schema === CallToolRequestSchema) {
           callToolHandler = handler;
         }
       });
@@ -154,7 +153,8 @@ describe('ToolHandlerService', () => {
       ToolHandlerService.setupServerHandlers(mockServer);
 
       // Test list tools handler
-      const toolList = await listToolsHandler();
+      expect(listToolsHandler).toBeDefined();
+      const toolList = await listToolsHandler!();
       expect(toolList.tools).toHaveLength(3);
 
       // Test call tool handler
@@ -165,7 +165,8 @@ describe('ToolHandlerService', () => {
         }
       };
 
-      const toolResult = await callToolHandler(mockRequest);
+      expect(callToolHandler).toBeDefined();
+      const toolResult = await callToolHandler!(mockRequest);
       expect(toolResult.content).toHaveLength(1);
       expect(toolResult.content[0].text).toContain('Weather search placeholder');
     });

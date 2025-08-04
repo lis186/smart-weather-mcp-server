@@ -6,10 +6,10 @@
   "main": "dist/unified-server.js",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/server.ts",
+    "dev": "tsx src/unified-server.ts",
     "dev:stdio": "tsx src/unified-server.ts --mode=stdio",
     "dev:http": "tsx src/unified-server.ts --mode=http",
-    "start": "node dist/server.js",
+    "start": "node dist/unified-server.js",
     "start:stdio": "node dist/unified-server.js --mode=stdio",
     "start:http": "node dist/unified-server.js --mode=http",
     "start:unified": "node dist/unified-server.js",
@@ -29,10 +29,10 @@
   },
   "devDependencies": {
     "@types/express": "^4.17.0",
-    "@types/node": "^20.0.0",
     "@types/jest": "^29.0.0",
+    "@types/node": "^20.0.0",
     "jest": "^29.0.0",
-    "ts-jest": "^29.0.0",
+    "ts-jest": "^29.4.1",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   },

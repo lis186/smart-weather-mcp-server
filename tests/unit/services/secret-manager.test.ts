@@ -1,4 +1,4 @@
-import { SecretManager } from '../../../src/services/secret-manager.js';
+import { SecretManager } from '../../../src/services/secret-manager';
 
 // Mock Google Cloud Secret Manager
 jest.mock('@google-cloud/secret-manager', () => ({

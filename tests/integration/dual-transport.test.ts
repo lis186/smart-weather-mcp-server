@@ -1,7 +1,7 @@
 import { spawn, ChildProcess } from 'child_process';
 import axios from 'axios';
-import { SmartWeatherMCPServer } from '../../src/core/mcp-server.js';
-import { ExpressServer } from '../../src/core/express-server.js';
+import { SmartWeatherMCPServer } from '../../src/core/mcp-server';
+import { ExpressServer } from '../../src/core/express-server';
 
 describe('Dual Transport Integration', () => {
   const testPort = 8081;
