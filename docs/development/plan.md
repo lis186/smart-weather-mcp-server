@@ -20,33 +20,35 @@
 
 ## 🎯 階段性執行計劃
 
-### 階段 1: 核心基礎建設（關鍵風險優先） (預計 2-3 天)
+### 階段 1: 核心基礎建設（關鍵風險優先） ✅ 已完成 (實際 1 天)
 
 **目標**：驗證技術可行性，建立可部署的基礎 MCP 伺服器架構
 
+**實際成果**：成功建立完整的 MCP 伺服器框架，超出預期實現統一傳輸模式切換功能
+
 #### 1.1 專案結構建立 📁
-- [ ] 建立 TypeScript 專案結構
-- [ ] 設置 package.json 與依賴
-- [ ] 配置 TypeScript 和構建流程
-- [ ] 建立基礎 Dockerfile 與部署腳本
+- [x] 建立 TypeScript 專案結構
+- [x] 設置 package.json 與依賴
+- [x] 配置 TypeScript 和構建流程
+- [x] 建立基礎 Dockerfile 與部署腳本
 
 #### 1.2 MCP Server 基礎框架 🔌
-- [ ] 實作 Express.js 基礎伺服器
-- [ ] 整合 MCP SDK 與 SSE 傳輸
-- [ ] 建立 Cloud Run 健康檢查端點
-- [ ] 建立 SSE 端點 MCP 連線
+- [x] 實作 Express.js 基礎伺服器
+- [x] 整合 MCP SDK 與 SSE 傳輸
+- [x] 建立 Cloud Run 健康檢查端點
+- [x] 建立 SSE 端點 MCP 連線
 
 #### 1.3 Secret Manager 整合 🔐
-- [ ] 設置 Google Cloud Secret Manager 客戶端
-- [ ] 實現密鑰載入機制
-- [ ] 配置本地開發環境變數
+- [x] 設置 Google Cloud Secret Manager 客戶端
+- [x] 實現密鑰載入機制
+- [x] 配置本地開發環境變數
 
 **驗收標準**：
-- [ ] Express 伺服器可在本地啟動
-- [ ] `/health` 端點正常回應
-- [ ] `/sse` 端點可建立 MCP 連線
-- [ ] Docker 容器可成功建置
-- [ ] 可部署至 Cloud Run 並正常運行
+- [x] Express 伺服器可在本地啟動
+- [x] `/health` 端點正常回應
+- [x] `/sse` 端點可建立 MCP 連線
+- [x] Docker 容器可成功建置
+- [x] 可部署至 Cloud Run 並正常運行
 
 **關鍵風險**：
 - MCP SDK SSE 傳輸整合複雜度
@@ -55,6 +57,20 @@
 **緩解策略**：
 - 先實作最簡單的 MCP 連線，再加入複雜功能
 - 使用最小化 Docker image 減少冷啟動時間
+
+#### 1.4 額外成就（超出原計劃） 🚀
+- [x] 實現統一傳輸模式伺服器（`unified-server.ts`）
+- [x] 支援命令列模式切換（`--mode=stdio|http`）
+- [x] 修復 Claude Desktop JSON-RPC 相容性問題
+- [x] 建立完整的傳輸模式文檔（`TRANSPORT_MODES.md`）
+- [x] 改進 NPM 腳本支援多種開發模式
+- [x] 實現 STDIO 和 HTTP/SSE 雙模式支援
+
+**階段 1 學習總結**：
+- 統一傳輸架構比預期更容易實現且價值更高
+- STDIO 模式的日誌分離是關鍵技術要點
+- Claude Desktop 整合比預期順利，但需要注意 stdout 清潔性
+- 命令列參數方式比環境變數更直觀易用
 
 ### 階段 2: Gemini AI 整合驗證（關鍵風險優先） (預計 2-3 天)
 

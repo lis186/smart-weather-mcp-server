@@ -6,6 +6,8 @@
 
 開發一個基於 Model Context Protocol (MCP) 的天氣查詢服務，讓 AI 助手能夠透過自然語言查詢全球天氣資訊。採用 Shopify Storefront MCP 設計哲學，提供用戶意圖導向的智能工具。
 
+**🎯 當前狀態**：Phase 1 已完成 - 基礎架構與核心 MCP 框架已實現，支援雙傳輸模式（STDIO/HTTP）。
+
 **選擇 MCP 的原因**：
 
 - 標準化的 AI 工具整合協議
@@ -27,10 +29,52 @@
 - AI 助手中的天氣查詢對話
 - 開發者工作流程中的天氣資訊整合
 - 個人化天氣建議和行動指導
+- Claude Desktop 本地工具整合（STDIO 模式）
+- n8n 工作流程整合（HTTP/SSE 模式）
 
 ## 2. 系統架構
 
 ### 2.1 整體架構
+
+**實際實現的架構**（Phase 1）：
+
+```mermaid
+graph TB
+    subgraph "MCP Clients"
+        A[Claude Desktop]
+        B[n8n MCP Tool]
+        C[Custom Clients]
+    end
+    
+    subgraph "Transport Layer"
+        D[STDIO Transport]
+        E[HTTP/SSE Transport]
+    end
+    
+    subgraph "Smart Weather MCP Server"
+        F[Unified Server]
+        G[Express HTTP Server]
+        H[MCP Server Core]
+        I[3 MCP Tools]
+        J[Secret Manager Client]
+        K[Memory Cache]
+        L[Placeholder Services]
+    end
+    
+    A --> D
+    B --> E
+    C --> E
+    D --> F
+    E --> G
+    G --> F
+    F --> H
+    H --> I
+    I --> J
+    I --> K
+    I --> L
+```
+
+**計劃中的完整架構**（Phase 2+）：
 
 ```mermaid
 graph TB
@@ -68,17 +112,26 @@ graph TB
 
 ### 2.2 主要組件
 
-| 組件 | 職責 | 實現方式 |
-|------|------|----------|
-| **Express HTTP Server** | HTTP 服務和路由 | Express.js 4.18+ |
-| **Health Check Endpoint** | Cloud Run 健康檢查 | HTTP GET /health |
-| **SSE Transport Handler** | MCP 協議通信 | MCP TypeScript SDK |
-| **統一工具處理器** | 3個工具的統一入口 | TypeScript 類別 |
-| **查詢解析器** | 自然語言理解 | Gemini API 整合 |
-| **API 路由器** | 智能 API 選擇 | 條件路由邏輯 |
-| **記憶體快取** | 回應快取管理 | JavaScript Map |
-| **Secret Manager 客戶端** | 密鑰管理 | @google-cloud/secret-manager |
-| **Google API 客戶端** | 外部 API 調用 | Axios HTTP 客戶端 |
+**已實現組件**（Phase 1）：
+
+| 組件 | 職責 | 實現狀態 | 實現方式 |
+|------|------|----------|----------|
+| **Unified Server** | 傳輸模式切換 | ✅ 已完成 | 命令行參數解析 |
+| **Express HTTP Server** | HTTP 服務和路由 | ✅ 已完成 | Express.js 4.18+ |
+| **Health Check Endpoint** | Cloud Run 健康檢查 | ✅ 已完成 | HTTP GET /health |
+| **SSE Transport Handler** | MCP 協議通信 | ✅ 已完成 | MCP TypeScript SDK |
+| **STDIO Transport Handler** | Claude Desktop 支援 | ✅ 已完成 | MCP TypeScript SDK |
+| **統一工具處理器** | 3個工具的統一入口 | ✅ 已完成 | TypeScript 類別 |
+| **Secret Manager 客戶端** | 密鑰管理 | ✅ 已完成 | @google-cloud/secret-manager |
+| **記憶體快取** | 基礎快取框架 | ✅ 已完成 | JavaScript Map |
+
+**計劃中組件**（Phase 2+）：
+
+| 組件 | 職責 | 實現狀態 | 計劃實現方式 |
+|------|------|----------|-------------|
+| **查詢解析器** | 自然語言理解 | 📋 計劃中 | Gemini API 整合 |
+| **API 路由器** | 智能 API 選擇 | 📋 計劃中 | 條件路由邏輯 |
+| **Google API 客戶端** | 外部 API 調用 | 📋 計劃中 | Axios HTTP 客戶端 |
 
 ## 3. 技術選擇與依賴
 
@@ -1116,29 +1169,49 @@ class Logger {
 
 ## 13. 未來擴展考慮
 
-### 13.1 升級路徑
+### 13.1 實際升級路徑
+
+**✅ Phase 1 已完成**（基礎架構）：
+- STDIO/HTTP 雙傳輸模式
+- 統一傳輸模式切換
+- 記憶體快取框架
+- Secret Manager 整合
+- MCP 工具註冊框架
+- Claude Desktop 整合
+
+**📋 Phase 2 計劃**（核心功能）：
+- Gemini AI 解析整合
+- Google Weather API 整合
+- 智能查詢路由
+- 基礎錯誤處理
+
+**📋 Phase 3 計劃**（增強功能）：
+- 多語言支援
+- 進階快取策略
+- 效能監控
+- Cloud Run 部署優化
 
 ```mermaid
 graph LR
-    A[第一版 - 多協議] --> B[第二版 - 增強功能]
-    B --> C[第三版 - 雲端部署]
+    A[Phase 1 ✅<br/>基礎架構] --> B[Phase 2 📋<br/>核心功能]
+    B --> C[Phase 3 📋<br/>增強功能]
     
-    subgraph "第一版功能"
-        D[STDIO/SSE 傳輸]
-        E[記憶體快取]
-        F[基礎錯誤處理]
+    subgraph "Phase 1 已完成"
+        D[雙傳輸模式]
+        E[MCP 框架]
+        F[Secret Manager]
     end
     
-    subgraph "第二版升級"
-        G[WebSocket 傳輸]
-        H[Redis 快取]
-        I[進階監控]
+    subgraph "Phase 2 計劃"
+        G[Gemini 解析]
+        H[Weather API]
+        I[智能路由]
     end
     
-    subgraph "第三版升級"
-        J[Cloud Run 部署]
-        K[多供應商支援]
-        L[高可用架構]
+    subgraph "Phase 3 計劃"
+        J[多語言支援]
+        K[Cloud Run 優化]
+        L[進階監控]
     end
 ```
 
@@ -1154,23 +1227,40 @@ graph LR
 
 ## 14. 驗收標準
 
-### 14.1 功能需求驗收
+### 14.1 Phase 1 功能需求驗收
 
-- [ ] 3個 MCP 工具正常註冊和調用
+**✅ 已完成**：
+- [x] 3個 MCP 工具正常註冊和調用
+- [x] 雙傳輸模式支援（STDIO/HTTP）
+- [x] 統一傳輸模式切換
+- [x] Secret Manager 整合
+- [x] 記憶體快取基礎框架
+- [x] Claude Desktop 整合支援
+- [x] Express HTTP 服務器
+- [x] 健康檢查端點
+
+**📋 Phase 2+ 計劃中**：
 - [ ] Gemini AI 查詢解析準確率 ≥ 90%
 - [ ] Google Weather API 整合完整
 - [ ] 多語言回應支援（中、英、日）
-- [ ] 記憶體快取機制運作正常
+- [ ] 智能查詢路由
 
-### 14.2 非功能需求驗收
+### 14.2 Phase 1 非功能需求驗收
 
+**✅ 已完成**：
+- [x] SSE 傳輸穩定運行
+- [x] STDIO 傳輸穩定運行
+- [x] 健康檢查端點正常回應
+- [x] Secret Manager 密鑰載入成功
+- [x] TypeScript 編譯成功
+- [x] 開發/生產環境配置
+- [x] Claude Desktop 整合測試通過
+
+**📋 Phase 2+ 計劃中**：
 - [ ] 平均回應時間 ≤ 1.5秒
 - [ ] Cloud Run 冷啟動時間 ≤ 2秒
 - [ ] API 調用成功率 ≥ 95%
 - [ ] 快取命中率 ≥ 60%
-- [ ] SSE 傳輸穩定運行
-- [ ] 健康檢查端點正常回應
-- [ ] Secret Manager 密鑰載入成功
 - [ ] 容器映像建置成功
 - [ ] Cloud Run 自動擴展正常運作
 - [ ] 錯誤處理涵蓋所有 Google API 錯誤碼
