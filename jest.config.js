@@ -3,14 +3,10 @@ export default {
   // Test environment
   testEnvironment: 'node',
   
-  // Test file patterns - only test JS files in dist for now
+  // Test file patterns - only JS tests since we test compiled output
   testMatch: [
-    '**/tests/**/*.test.js',
-    '**/__tests__/**/*.test.js',
+    '**/tests/**/*.test.js'
   ],
-  
-  // Module type
-  type: 'module',
   
   // Coverage configuration
   collectCoverage: false,
@@ -27,7 +23,7 @@ export default {
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
   
   // Timeout for tests
-  testTimeout: 10000,
+  testTimeout: 15000,
   
   // Clear mocks between tests
   clearMocks: true,

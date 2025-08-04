@@ -3,7 +3,7 @@
   "description": "智能天氣查詢 MCP Server，支援多供應商天氣資料整合",
   "version": "1.0.0",
   "type": "module",
-  "main": "dist/server.js",
+  "main": "dist/unified-server.js",
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/server.ts",
@@ -30,7 +30,9 @@
   "devDependencies": {
     "@types/express": "^4.17.0",
     "@types/node": "^20.0.0",
+    "@types/jest": "^29.0.0",
     "jest": "^29.0.0",
+    "ts-jest": "^29.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   },

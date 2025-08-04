@@ -6,6 +6,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { WeatherQuery } from '../types/index.js';
+import { logger } from './logger.js';
 
 /**
  * Shared tool handler service to avoid code duplication between STDIO and HTTP modes
@@ -122,7 +123,11 @@ export class ToolHandlerService {
    */
   static async handleToolCall(name: string, args: unknown) {
     try {
-      const query = args as WeatherQuery;
+      // Runtime input validation
+      const query = this.validateWeatherQuery(args);
+      
+      // Log tool call for monitoring
+      logger.toolCall(name, query.query, query.context);
       
       switch (name) {
         case 'search_weather':
@@ -136,13 +141,83 @@ export class ToolHandlerService {
       }
     } catch (error) {
       if (error instanceof McpError) {
+        logger.warn('Tool call validation error', { toolName: name, error: error.message });
         throw error;
       }
+      logger.error('Tool execution error', { toolName: name }, error instanceof Error ? error : new Error(String(error)));
       throw new McpError(
         ErrorCode.InternalError,
         `Error executing tool ${name}: ${error instanceof Error ? error.message : String(error)}`
       );
     }
+  }
+
+  /**
+   * Validate and sanitize weather query input
+   */
+  private static validateWeatherQuery(args: unknown): WeatherQuery {
+    if (!args || typeof args !== 'object') {
+      throw new McpError(ErrorCode.InvalidParams, 'Tool arguments must be an object');
+    }
+
+    const input = args as Record<string, unknown>;
+
+    // Validate required query field
+    if (!input.query || typeof input.query !== 'string') {
+      throw new McpError(ErrorCode.InvalidParams, 'Query parameter is required and must be a string');
+    }
+
+    // Sanitize query - remove excessive whitespace and limit length
+    const sanitizedQuery = String(input.query).trim().slice(0, 1000);
+    if (!sanitizedQuery) {
+      throw new McpError(ErrorCode.InvalidParams, 'Query cannot be empty');
+    }
+
+    // Validate and sanitize context if provided
+    let sanitizedContext: WeatherQuery['context'] = undefined;
+    if (input.context && typeof input.context === 'object' && input.context !== null) {
+      const context = input.context as Record<string, unknown>;
+      sanitizedContext = {};
+
+      // Sanitize string fields
+      const stringFields = ['location', 'timeframe', 'country', 'region', 'activity'];
+      for (const field of stringFields) {
+        if (context[field] && typeof context[field] === 'string') {
+          sanitizedContext[field] = String(context[field]).trim().slice(0, 200);
+        }
+      }
+
+      // Sanitize preferences object
+      if (context.preferences && typeof context.preferences === 'object' && context.preferences !== null) {
+        sanitizedContext.preferences = {};
+        const prefs = context.preferences as Record<string, unknown>;
+        
+        // Only allow simple values in preferences
+        for (const [key, value] of Object.entries(prefs)) {
+          if (typeof key === 'string' && key.length <= 50) {
+            if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+              sanitizedContext.preferences[key] = value;
+            }
+          }
+        }
+      }
+
+      // Allow other context fields but sanitize them
+      for (const [key, value] of Object.entries(context)) {
+        if (!stringFields.includes(key) && key !== 'preferences' && typeof key === 'string' && key.length <= 50) {
+          if (typeof value === 'string') {
+            sanitizedContext[key] = String(value).trim().slice(0, 200);
+          } else if (typeof value === 'number' || typeof value === 'boolean') {
+            sanitizedContext[key] = value;
+          }
+        }
+      }
+    }
+
+    return {
+      query: sanitizedQuery,
+      context: sanitizedContext
+    };
   }
 
   /**

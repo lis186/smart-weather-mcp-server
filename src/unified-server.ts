@@ -14,6 +14,7 @@ import { SmartWeatherMCPServer } from './core/mcp-server.js';
 import { ExpressServer } from './core/express-server.js';
 import { SecretManager } from './services/secret-manager.js';
 import { ServerConfig } from './types/index.js';
+import { logger } from './services/logger.js';
 
 interface CLIArgs {
   mode: 'stdio' | 'http';
@@ -35,13 +36,13 @@ function parseArgs(): CLIArgs {
       if (mode === 'stdio' || mode === 'http') {
         args.mode = mode;
       } else {
-        console.error(`Invalid mode: ${mode}. Use 'stdio' or 'http'`);
+        logger.error('Invalid mode specified', { mode, validModes: ['stdio', 'http'] });
         process.exit(1);
       }
     } else if (arg.startsWith('--port=')) {
       args.port = parseInt(arg.split('=')[1], 10);
       if (isNaN(args.port)) {
-        console.error(`Invalid port: ${arg.split('=')[1]}`);
+        logger.error('Invalid port specified', { port: arg.split('=')[1] });
         process.exit(1);
       }
     } else if (arg.startsWith('--host=')) {
@@ -91,7 +92,7 @@ async function startSTDIOServer(): Promise<void> {
     const secretsValid = await secretManager.validateSecrets(secrets);
 
     if (!secretsValid && process.env.NODE_ENV === 'production') {
-      console.error('Failed to validate required secrets in production environment');
+      logger.error('Failed to validate required secrets in production environment');
       process.exit(1);
     }
 
@@ -100,7 +101,7 @@ async function startSTDIOServer(): Promise<void> {
     await mcpServer.run();
 
   } catch (error) {
-    console.error('Failed to start STDIO MCP server:', error);
+    logger.error('Failed to start STDIO MCP server', {}, error instanceof Error ? error : new Error(String(error)));
     process.exit(1);
   }
 }
@@ -114,9 +115,11 @@ async function startHTTPServer(host: string, port: number): Promise<void> {
       environment: (process.env.NODE_ENV as 'development' | 'production') || 'development',
     };
 
-    console.log('Starting Smart Weather MCP Server in HTTP mode...');
-    console.log(`Environment: ${config.environment}`);
-    console.log(`Server will listen on ${config.host}:${config.port}`);
+    logger.info('Starting Smart Weather MCP Server in HTTP mode', {
+      environment: config.environment,
+      host: config.host,
+      port: config.port
+    });
 
     // Initialize Secret Manager
     const secretManager = new SecretManager();
@@ -124,7 +127,7 @@ async function startHTTPServer(host: string, port: number): Promise<void> {
     const secretsValid = await secretManager.validateSecrets(secrets);
 
     if (!secretsValid && config.environment === 'production') {
-      console.error('Failed to validate required secrets in production environment');
+      logger.error('Failed to validate required secrets in production environment');
       process.exit(1);
     }
 
@@ -134,10 +137,10 @@ async function startHTTPServer(host: string, port: number): Promise<void> {
     const expressServer = new ExpressServer(config);
     await expressServer.start();
 
-    console.log('Smart Weather MCP Server started successfully in HTTP mode');
+    logger.info('Smart Weather MCP Server started successfully in HTTP mode');
 
   } catch (error) {
-    console.error('Failed to start HTTP MCP server:', error);
+    logger.error('Failed to start HTTP MCP server', {}, error instanceof Error ? error : new Error(String(error)));
     process.exit(1);
   }
 }
@@ -152,7 +155,7 @@ async function main(): Promise<void> {
 
   // Graceful shutdown handling
   const shutdown = async (signal: string): Promise<void> => {
-    console.error(`Received ${signal}, shutting down gracefully...`);
+    logger.info('Received shutdown signal, shutting down gracefully', { signal });
     process.exit(0);
   };
 
@@ -161,13 +164,13 @@ async function main(): Promise<void> {
 
   // Handle unhandled promise rejections
   process.on('unhandledRejection', (reason, promise) => {
-    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    logger.error('Unhandled promise rejection', { promise: String(promise), reason: String(reason) });
     process.exit(1);
   });
 
   // Handle uncaught exceptions
   process.on('uncaughtException', (error) => {
-    console.error('Uncaught Exception:', error);
+    logger.error('Uncaught exception', {}, error);
     process.exit(1);
   });
 
@@ -184,13 +187,13 @@ async function main(): Promise<void> {
       break;
 
     default:
-      console.error(`Unknown mode: ${args.mode}`);
+      logger.error('Unknown mode specified', { mode: args.mode, validModes: ['stdio', 'http'] });
       process.exit(1);
   }
 }
 
 // Start the server
 main().catch((error) => {
-  console.error('Server startup failed:', error);
+  logger.error('Server startup failed', {}, error instanceof Error ? error : new Error(String(error)));
   process.exit(1);
 });

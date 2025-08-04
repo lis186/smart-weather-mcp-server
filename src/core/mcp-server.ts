@@ -1,6 +1,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { ToolHandlerService } from '../services/tool-handlers.js';
+import { logger } from '../services/logger.js';
 
 export class SmartWeatherMCPServer {
   private server: Server;
@@ -29,6 +30,10 @@ export class SmartWeatherMCPServer {
   async run(): Promise<void> {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error('Smart Weather MCP Server running on stdio');
+    logger.info('Smart Weather MCP Server running on stdio', {
+      serverName: 'smart-weather-mcp-server',
+      version: '1.0.0',
+      transport: 'stdio'
+    });
   }
 }

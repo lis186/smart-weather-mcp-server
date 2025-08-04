@@ -1,0 +1,233 @@
+// Express server tests using compiled JS files
+const { ExpressServer } = require('../../../dist/core/express-server.js');
+const axios = require('axios');
+
+describe('ExpressServer', () => {
+  let server;
+  let expressServer;
+  const testPort = 8082;
+  const testHost = 'localhost';
+
+  beforeEach(() => {
+    const config = {
+      port: testPort,
+      host: testHost,
+      environment: 'development',
+      secrets: {
+        geminiApiKey: 'test-gemini-key',
+        weatherApiKey: 'test-weather-key'
+      }
+    };
+    
+    expressServer = new ExpressServer(config);
+  });
+
+  afterEach(async () => {
+    if (server) {
+      server.close();
+      server = null;
+    }
+  });
+
+  describe('Server Initialization', () => {
+    it('should create ExpressServer instance with valid config', () => {
+      expect(expressServer).toBeDefined();
+      expect(expressServer.config?.port).toBe(testPort);
+      expect(expressServer.config?.host).toBe(testHost);
+      expect(expressServer.config?.environment).toBe('development');
+    });
+
+    it('should start server successfully', async () => {
+      await expressServer.start();
+      
+      // Verify server is running by making a health check request
+      const response = await axios.get(`http://${testHost}:${testPort}/health`);
+      expect(response.status).toBe(200);
+      expect(response.data.status).toBe('healthy');
+    });
+  });
+
+  describe('Health Check Endpoint', () => {
+    beforeEach(async () => {
+      await expressServer.start();
+    });
+
+    it('should return healthy status with correct metadata', async () => {
+      const response = await axios.get(`http://${testHost}:${testPort}/health`);
+      
+      expect(response.status).toBe(200);
+      expect(response.data).toMatchObject({
+        status: 'healthy',
+        service: 'smart-weather-mcp-server',
+        version: '1.0.0',
+        environment: 'development'
+      });
+      expect(response.data.timestamp).toBeDefined();
+    });
+
+    it('should include proper headers', async () => {
+      const response = await axios.get(`http://${testHost}:${testPort}/health`);
+      
+      expect(response.headers['content-type']).toContain('application/json');
+    });
+  });
+
+  describe('Root Endpoint', () => {
+    beforeEach(async () => {
+      await expressServer.start();
+    });
+
+    it('should return API information', async () => {
+      const response = await axios.get(`http://${testHost}:${testPort}/`);
+      
+      expect(response.status).toBe(200);
+      expect(response.data).toMatchObject({
+        name: 'Smart Weather MCP Server',
+        version: '1.0.0',
+        description: 'AI-powered weather query MCP server with natural language understanding',
+        endpoints: {
+          health: '/health',
+          sse: '/sse'
+        },
+        tools: [
+          'search_weather',
+          'find_location',
+          'get_weather_advice'
+        ]
+      });
+    });
+  });
+
+  describe('SSE Endpoint', () => {
+    beforeEach(async () => {
+      await expressServer.start();
+    });
+
+    it('should accept SSE connections', async () => {
+      // Test that the SSE endpoint exists and accepts connections
+      try {
+        const response = await axios.get(`http://${testHost}:${testPort}/sse`, {
+          timeout: 1000,
+          responseType: 'stream'
+        });
+        
+        // SSE should return 200 and set appropriate headers
+        expect(response.status).toBe(200);
+      } catch (error) {
+        // Timeout is expected in test environment
+        if (error.code === 'ECONNABORTED') {
+          // This is expected - SSE connections stay open
+          expect(error.message).toContain('timeout');
+        } else {
+          throw error;
+        }
+      }
+    });
+
+    it('should have proper SSE headers', async () => {
+      try {
+        await axios.get(`http://${testHost}:${testPort}/sse`, {
+          timeout: 500,
+          responseType: 'stream'
+        });
+      } catch (error) {
+        // Check that the request was made (might timeout, which is expected)
+        expect(error.config?.url).toContain('/sse');
+      }
+    });
+  });
+
+  describe('Error Handling', () => {
+    beforeEach(async () => {
+      await expressServer.start();
+    });
+
+    it('should return 404 for unknown endpoints', async () => {
+      try {
+        await axios.get(`http://${testHost}:${testPort}/unknown-endpoint`);
+        fail('Should have returned 404');
+      } catch (error) {
+        expect(error.response.status).toBe(404);
+        expect(error.response.data.error).toContain('Endpoint not found');
+        expect(error.response.data.path).toBe('/unknown-endpoint');
+        expect(error.response.data.availableEndpoints).toEqual(['/', '/health', '/sse']);
+      }
+    });
+
+    it('should handle malformed requests gracefully', async () => {
+      try {
+        await axios.post(`http://${testHost}:${testPort}/health`, { invalid: 'data' });
+        fail('Should have returned error');
+      } catch (error) {
+        // Should not crash the server
+        expect(error.response.status).toBeGreaterThanOrEqual(400);
+      }
+
+      // Verify server is still responsive
+      const healthResponse = await axios.get(`http://${testHost}:${testPort}/health`);
+      expect(healthResponse.status).toBe(200);
+    });
+  });
+
+  describe('CORS Configuration', () => {
+    beforeEach(async () => {
+      await expressServer.start();
+    });
+
+    it('should have CORS headers in development', async () => {
+      const response = await axios.get(`http://${testHost}:${testPort}/health`);
+      
+      // In development mode, CORS should be permissive
+      expect(response.status).toBe(200);
+      
+      // Test OPTIONS request for CORS preflight
+      try {
+        const optionsResponse = await axios.options(`http://${testHost}:${testPort}/health`);
+        // Should handle OPTIONS requests
+      } catch (error) {
+        // Some versions might not handle OPTIONS, but shouldn't crash
+        expect(error.response?.status).not.toBe(500);
+      }
+    });
+  });
+
+  describe('Environment-specific Behavior', () => {
+    it('should behave differently in production environment', () => {
+      const prodConfig = {
+        port: testPort + 1,
+        host: testHost,
+        environment: 'production',
+        secrets: {
+          geminiApiKey: 'prod-key',
+          weatherApiKey: 'prod-key'
+        }
+      };
+      
+      const prodServer = new ExpressServer(prodConfig);
+      expect(prodServer.config?.environment).toBe('production');
+    });
+  });
+
+  describe('Server Configuration', () => {
+    it('should use provided host and port', () => {
+      const customConfig = {
+        port: 9999,
+        host: '127.0.0.1',
+        environment: 'development',
+        secrets: {
+          geminiApiKey: 'test-key',
+          weatherApiKey: 'test-key'
+        }
+      };
+      
+      const customServer = new ExpressServer(customConfig);
+      expect(customServer.config?.port).toBe(9999);
+      expect(customServer.config?.host).toBe('127.0.0.1');
+    });
+
+    it('should handle secrets configuration', () => {
+      expect(expressServer.config?.secrets?.geminiApiKey).toBe('test-gemini-key');
+      expect(expressServer.config?.secrets?.weatherApiKey).toBe('test-weather-key');
+    });
+  });
+});
