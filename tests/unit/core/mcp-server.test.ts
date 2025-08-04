@@ -1,4 +1,5 @@
 import { SmartWeatherMCPServer } from '../../../src/core/mcp-server.js';
+import { ToolHandlerService } from '../../../src/services/tool-handlers.js';
 import { WeatherQuery } from '../../../src/types/index.js';
 
 describe('SmartWeatherMCPServer', () => {
@@ -6,72 +7,6 @@ describe('SmartWeatherMCPServer', () => {
 
   beforeEach(() => {
     server = new SmartWeatherMCPServer();
-  });
-
-  describe('Tool Handlers', () => {
-    describe('handleSearchWeather', () => {
-      it('should return placeholder response for weather search', async () => {
-        const query: WeatherQuery = {
-          query: 'What is the weather in Tokyo?',
-          context: { location: 'Tokyo' }
-        };
-
-        // Access private method for testing
-        const result = await (server as any).handleSearchWeather(query);
-
-        expect(result).toHaveProperty('content');
-        expect(result.content).toBeInstanceOf(Array);
-        expect(result.content[0]).toHaveProperty('type', 'text');
-        expect(result.content[0].text).toContain('Weather search placeholder');
-        expect(result.content[0].text).toContain(query.query);
-      });
-
-      it('should handle query without context', async () => {
-        const query: WeatherQuery = {
-          query: 'Current weather'
-        };
-
-        const result = await (server as any).handleSearchWeather(query);
-
-        expect(result.content[0].text).toContain('Current weather');
-        expect(result.content[0].text).not.toContain('Context:');
-      });
-    });
-
-    describe('handleFindLocation', () => {
-      it('should return placeholder response for location search', async () => {
-        const query: WeatherQuery = {
-          query: 'Tokyo, Japan',
-          context: { country: 'Japan' }
-        };
-
-        const result = await (server as any).handleFindLocation(query);
-
-        expect(result).toHaveProperty('content');
-        expect(result.content[0]).toHaveProperty('type', 'text');
-        expect(result.content[0].text).toContain('Location search placeholder');
-        expect(result.content[0].text).toContain(query.query);
-      });
-    });
-
-    describe('handleGetWeatherAdvice', () => {
-      it('should return placeholder response for weather advice', async () => {
-        const query: WeatherQuery = {
-          query: 'Should I bring an umbrella?',
-          context: { 
-            location: 'Tokyo',
-            activity: 'outdoor event'
-          }
-        };
-
-        const result = await (server as any).handleGetWeatherAdvice(query);
-
-        expect(result).toHaveProperty('content');
-        expect(result.content[0]).toHaveProperty('type', 'text');
-        expect(result.content[0].text).toContain('Weather advice placeholder');
-        expect(result.content[0].text).toContain(query.query);
-      });
-    });
   });
 
   describe('Server Configuration', () => {
@@ -86,6 +21,96 @@ describe('SmartWeatherMCPServer', () => {
       const serverInstance = (server as any).server;
       
       expect(serverInstance.capabilities).toHaveProperty('tools');
+    });
+  });
+
+  describe('Tool Handler Integration', () => {
+    it('should use shared tool handler service', () => {
+      // Verify that the server is using the shared tool handler service
+      const serverInstance = (server as any).server;
+      expect(serverInstance._requestHandlers).toBeDefined();
+    });
+  });
+});
+
+// Test the shared tool handler service separately
+describe('ToolHandlerService', () => {
+  describe('Tool Definitions', () => {
+    it('should return correct tool definitions', () => {
+      const definitions = ToolHandlerService.getToolDefinitions();
+      
+      expect(definitions.tools).toHaveLength(3);
+      expect(definitions.tools[0].name).toBe('search_weather');
+      expect(definitions.tools[1].name).toBe('find_location');
+      expect(definitions.tools[2].name).toBe('get_weather_advice');
+    });
+  });
+
+  describe('Tool Handlers', () => {
+    describe('handleToolCall', () => {
+      it('should handle search_weather tool call', async () => {
+        const query: WeatherQuery = {
+          query: 'What is the weather in Tokyo?',
+          context: { location: 'Tokyo' }
+        };
+
+        const result = await ToolHandlerService.handleToolCall('search_weather', query);
+
+        expect(result).toHaveProperty('content');
+        expect(result.content).toBeInstanceOf(Array);
+        expect(result.content[0]).toHaveProperty('type', 'text');
+        expect(result.content[0].text).toContain('Weather search placeholder');
+        expect(result.content[0].text).toContain(query.query);
+      });
+
+      it('should handle find_location tool call', async () => {
+        const query: WeatherQuery = {
+          query: 'Tokyo, Japan',
+          context: { country: 'Japan' }
+        };
+
+        const result = await ToolHandlerService.handleToolCall('find_location', query);
+
+        expect(result).toHaveProperty('content');
+        expect(result.content[0]).toHaveProperty('type', 'text');
+        expect(result.content[0].text).toContain('Location search placeholder');
+        expect(result.content[0].text).toContain(query.query);
+      });
+
+      it('should handle get_weather_advice tool call', async () => {
+        const query: WeatherQuery = {
+          query: 'Should I bring an umbrella?',
+          context: { 
+            location: 'Tokyo',
+            activity: 'outdoor event'
+          }
+        };
+
+        const result = await ToolHandlerService.handleToolCall('get_weather_advice', query);
+
+        expect(result).toHaveProperty('content');
+        expect(result.content[0]).toHaveProperty('type', 'text');
+        expect(result.content[0].text).toContain('Weather advice placeholder');
+        expect(result.content[0].text).toContain(query.query);
+      });
+
+      it('should handle query without context', async () => {
+        const query: WeatherQuery = {
+          query: 'Current weather'
+        };
+
+        const result = await ToolHandlerService.handleToolCall('search_weather', query);
+
+        expect(result.content[0].text).toContain('Current weather');
+        expect(result.content[0].text).not.toContain('Context:');
+      });
+
+      it('should throw error for unknown tool', async () => {
+        const query: WeatherQuery = { query: 'test' };
+
+        await expect(ToolHandlerService.handleToolCall('unknown_tool', query))
+          .rejects.toThrow('Unknown tool: unknown_tool');
+      });
     });
   });
 });

@@ -130,7 +130,7 @@ describe('SecretManager', () => {
     });
   });
 
-  describe('getSecretFromManager', () => {
+  describe('getSecretValue', () => {
     beforeEach(() => {
       process.env.GOOGLE_CLOUD_PROJECT = 'test-project';
     });
@@ -141,7 +141,7 @@ describe('SecretManager', () => {
         payload: { data: Buffer.from(secretValue) }
       }]);
 
-      const result = await (secretManager as any).getSecretFromManager('test-secret');
+      const result = await (secretManager as any).getSecretValue('test-secret');
 
       expect(result).toBe(secretValue);
       expect(mockSecretClient.accessSecretVersion).toHaveBeenCalledWith({
@@ -152,7 +152,7 @@ describe('SecretManager', () => {
     it('should return undefined when secret access fails', async () => {
       mockSecretClient.accessSecretVersion.mockRejectedValue(new Error('Access denied'));
 
-      const result = await (secretManager as any).getSecretFromManager('test-secret');
+      const result = await (secretManager as any).getSecretValue('test-secret');
 
       expect(result).toBeUndefined();
     });
@@ -160,7 +160,7 @@ describe('SecretManager', () => {
     it('should return undefined when project ID is missing', async () => {
       delete process.env.GOOGLE_CLOUD_PROJECT;
 
-      const result = await (secretManager as any).getSecretFromManager('test-secret');
+      const result = await (secretManager as any).getSecretValue('test-secret');
 
       expect(result).toBeUndefined();
     });

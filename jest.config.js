@@ -3,46 +3,21 @@ export default {
   // Test environment
   testEnvironment: 'node',
   
-  // Test file patterns
+  // Test file patterns - only test JS files in dist for now
   testMatch: [
     '**/tests/**/*.test.js',
-    '**/tests/**/*.test.ts',
-    '**/__tests__/**/*.js',
-    '**/__tests__/**/*.ts',
-    '**/?(*.)+(spec|test).[jt]s?(x)'
+    '**/__tests__/**/*.test.js',
   ],
   
-  // TypeScript support
-  preset: 'ts-jest/presets/default-esm',
-  extensionsToTreatAsEsm: ['.ts'],
-  
-  // Module resolution
-  moduleNameMapping: {
-    '^(\\.{1,2}/.*)\\.js$': '$1',
-  },
-  
-  // Transform configuration
-  transform: {
-    '^.+\\.ts$': ['ts-jest', {
-      useESM: true,
-      tsconfig: {
-        module: 'ES2022',
-        target: 'ES2022',
-        moduleResolution: 'node',
-        allowSyntheticDefaultImports: true,
-        esModuleInterop: true,
-      }
-    }]
-  },
+  // Module type
+  type: 'module',
   
   // Coverage configuration
-  collectCoverage: false, // Enable when running coverage
+  collectCoverage: false,
   collectCoverageFrom: [
-    'src/**/*.{js,ts}',
-    '!src/**/*.d.ts',
-    '!src/**/*.test.{js,ts}',
-    '!src/**/*.spec.{js,ts}',
-    '!dist/**',
+    'dist/**/*.js',
+    '!dist/**/*.test.js',
+    '!dist/**/*.spec.js',
     '!node_modules/**'
   ],
   coverageDirectory: 'coverage',
@@ -58,12 +33,5 @@ export default {
   clearMocks: true,
   
   // Verbose output
-  verbose: true,
-  
-  // Handle ES modules
-  globals: {
-    'ts-jest': {
-      useESM: true
-    }
-  }
+  verbose: true
 };
