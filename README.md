@@ -1,19 +1,22 @@
 # Smart Weather MCP Server
 
-智能天氣查詢 MCP Server，部署在 Google Cloud Run
+🌤️ 智能天氣查詢 MCP Server，支援多種傳輸模式部署
 
 ## 概述
 
-Smart Weather MCP Server 是一個基於 Model Context Protocol (MCP) 的智能天氣查詢服務，專為 Google Cloud Run 無伺服器環境設計。讓各種 MCP 客戶端（如 n8n、Claude Desktop 等）能夠透過自然語言查詢全球天氣資訊。
+Smart Weather MCP Server 是一個基於 Model Context Protocol (MCP) 的智能天氣查詢服務，支援 STDIO 和 HTTP/SSE 雙傳輸模式。可部署在 Google Cloud Run 或作為 Claude Desktop 本地工具使用，透過自然語言查詢全球天氣資訊。
+
+**🎯 當前狀態：Phase 1 完成** - 基礎架構已就緒，支援完整的 MCP 工具框架和統一傳輸模式切換。
 
 ### 核心特性
 
+- 🔄 **統一傳輸模式**：單一伺服器支援 STDIO 和 HTTP/SSE 模式切換
+- 🖥️ **Claude Desktop 整合**：完美支援 Claude Desktop 本地工具
 - ☁️ **Cloud Run 部署**：無伺服器架構，自動擴展與按使用量計費
 - 🎯 **用戶意圖導向**：3個智能工具涵蓋完整天氣查詢旅程
-- 🧠 **AI 智能解析**：使用 Gemini 2.5 Flash-Lite 進行自然語言理解
+- 🧠 **AI 智能解析**：使用 Gemini 2.5 Flash-Lite 進行自然語言理解（Phase 2）
 - 🔐 **安全密鑰管理**：透過 Google Secret Manager 管理 API 密鑰
-- 🌐 **HTTP/SSE Transport**：支援遠端 MCP 客戶端連接
-- 🌍 **多語言支援**：繁體中文、英文、日文
+- 🌍 **多語言支援**：繁體中文、英文、日文（Phase 2）
 - 📊 **健康檢查**：內建 Cloud Run 監控端點
 
 ## 工具清單
@@ -118,10 +121,35 @@ npm run docker:run
 2. **Authentication**: None (公開端點)
 3. **Tools to Include**: All 或選擇特定工具
 
+### Claude Desktop 本地整合
+
+支援 STDIO 模式，可直接整合到 Claude Desktop 作為本地工具：
+
+```bash
+# 安裝到本地使用
+npm install
+npm run build
+
+# 以 STDIO 模式啟動
+node dist/unified-server.js --mode=stdio
+```
+
+Claude Desktop 設定：
+
+```json
+{
+  "mcpServers": {
+    "smart-weather": {
+      "command": "node",
+      "args": ["/path/to/dist/unified-server.js", "--mode=stdio"]
+    }
+  }
+}
+```
+
 ### 其他 MCP 客戶端
 
-- **Claude Desktop**: 不支援（僅限 HTTP/SSE）
-- **Cursor**: 不支援（僅限 HTTP/SSE）
+- **n8n MCP Tool**: 支援 HTTP/SSE 模式
 - **自定義客戶端**: 連接到 `https://your-service-url/sse`
 
 ### 使用範例
@@ -244,8 +272,20 @@ npm test
 
 ## 文檔
 
-- [技術規格](./spec.md) - 詳細技術實現
+### 核心文檔
+- [技術規格](./spec.md) - 詳細技術實現和架構設計
 - [產品需求](./prd.md) - 完整產品需求文件
+- [執行計劃](./plan.md) - 階段性開發計劃和進度追蹤
+
+### 開發指南
+- [傳輸模式說明](./TRANSPORT_MODES.md) - STDIO/HTTP 模式切換指南
+- [學習日誌](./LEARNING_LOG.md) - 技術決策和開發經驗記錄
+- [開發指引](./CLAUDE.md) - Claude Code 專用開發指南
+
+### 部署相關
+- [API 設定指南](./API_SETUP.md) - Google Cloud API 和密鑰設定
+- [Docker 設定](./Dockerfile) - 容器化部署配置
+- [部署腳本](./deploy.sh) - 自動化部署工具
 
 ## 貢獻
 

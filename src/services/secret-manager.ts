@@ -1,12 +1,19 @@
+import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { ServerConfig } from '../types/index.js';
 
 export class SecretManager {
   private projectId: string | undefined;
   private environment: string;
+  private client: SecretManagerServiceClient | undefined;
 
   constructor() {
     this.projectId = process.env.GOOGLE_CLOUD_PROJECT;
     this.environment = process.env.NODE_ENV || 'development';
+    
+    // Initialize Google Cloud Secret Manager client in production
+    if (this.environment === 'production' && this.projectId) {
+      this.client = new SecretManagerServiceClient();
+    }
   }
 
   async loadSecrets(): Promise<ServerConfig['secrets']> {
@@ -19,6 +26,7 @@ export class SecretManager {
 
   private loadDevelopmentSecrets(): ServerConfig['secrets'] {
     // In development, load from environment variables
+    console.error('Loading secrets from environment variables (development mode)');
     return {
       geminiApiKey: process.env.GEMINI_API_KEY,
       weatherApiKey: process.env.WEATHER_API_KEY,
@@ -26,15 +34,55 @@ export class SecretManager {
   }
 
   private async loadProductionSecrets(): Promise<ServerConfig['secrets']> {
-    // Phase 1: Placeholder for Google Cloud Secret Manager integration
-    // This will be implemented in Phase 3 when we integrate actual APIs
+    if (!this.client || !this.projectId) {
+      console.error('Secret Manager client not initialized, falling back to environment variables');
+      return {
+        geminiApiKey: process.env.GEMINI_API_KEY,
+        weatherApiKey: process.env.WEATHER_API_KEY,
+      };
+    }
+
+    console.error('Loading secrets from Google Cloud Secret Manager');
     
-    console.log('Loading secrets from environment variables (Secret Manager integration pending)');
-    
-    return {
-      geminiApiKey: process.env.GEMINI_API_KEY,
-      weatherApiKey: process.env.WEATHER_API_KEY,
-    };
+    try {
+      const [geminiSecret, weatherSecret] = await Promise.all([
+        this.getSecretValue('gemini-api-key'),
+        this.getSecretValue('weather-api-key'),
+      ]);
+
+      return {
+        geminiApiKey: geminiSecret,
+        weatherApiKey: weatherSecret,
+      };
+    } catch (error) {
+      console.error('Failed to load secrets from Secret Manager:', error);
+      console.error('Falling back to environment variables');
+      
+      return {
+        geminiApiKey: process.env.GEMINI_API_KEY,
+        weatherApiKey: process.env.WEATHER_API_KEY,
+      };
+    }
+  }
+
+  private async getSecretValue(secretName: string): Promise<string | undefined> {
+    if (!this.client || !this.projectId) {
+      return undefined;
+    }
+
+    try {
+      const name = `projects/${this.projectId}/secrets/${secretName}/versions/latest`;
+      const [version] = await this.client.accessSecretVersion({ name });
+      
+      if (version.payload?.data) {
+        return version.payload.data.toString();
+      }
+      
+      return undefined;
+    } catch (error) {
+      console.error(`Failed to get secret ${secretName}:`, error);
+      return undefined;
+    }
   }
 
   async validateSecrets(secrets: ServerConfig['secrets']): Promise<boolean> {
@@ -60,7 +108,7 @@ export class SecretManager {
       }
     }
 
-    console.log('All required secrets are available');
+    console.error('All required secrets are available');
     return true;
   }
 
@@ -69,8 +117,8 @@ export class SecretManager {
       return process.env[name];
     }
 
-    // Phase 1: Placeholder for actual Secret Manager integration
-    // This will be implemented later when we need to access Google Cloud Secret Manager
-    return process.env[name];
+    // In production, try Secret Manager first, then fallback to environment variables
+    const secretValue = await this.getSecretValue(name);
+    return secretValue || process.env[name];
   }
 }

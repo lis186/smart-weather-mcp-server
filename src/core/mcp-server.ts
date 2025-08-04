@@ -136,11 +136,11 @@ export class SmartWeatherMCPServer {
       try {
         switch (name) {
           case 'search_weather':
-            return await this.handleSearchWeather(args as WeatherQuery);
+            return await this.handleSearchWeather(args as unknown as WeatherQuery);
           case 'find_location':
-            return await this.handleFindLocation(args as WeatherQuery);
+            return await this.handleFindLocation(args as unknown as WeatherQuery);
           case 'get_weather_advice':
-            return await this.handleGetWeatherAdvice(args as WeatherQuery);
+            return await this.handleGetWeatherAdvice(args as unknown as WeatherQuery);
           default:
             throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
         }

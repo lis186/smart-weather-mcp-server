@@ -5,3 +5,6 @@
 
 # Environment variables
 .env
+
+# Sensitive configuration files
+config/development/claude_desktop_config_merged.json
