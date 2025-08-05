@@ -26,6 +26,18 @@ export class QueryRouter {
 
   constructor(geminiParser?: GeminiWeatherParser, config?: Partial<QueryRouterConfig>) {
     this.apiSelector = new APISelector();
+    
+    // Enhanced AI parser initialization validation
+    if (geminiParser) {
+      if (typeof geminiParser.parseQuery !== 'function') {
+        logger.error('Invalid Gemini parser provided - missing parseQuery method');
+        throw new Error('Invalid Gemini parser: parseQuery method is required');
+      }
+      logger.info('Gemini parser successfully initialized for AI fallback');
+    } else {
+      logger.warn('No Gemini parser provided - AI fallback disabled');
+    }
+    
     this.geminiParser = geminiParser;
     this.config = {
       defaultLanguage: 'en',
@@ -331,28 +343,72 @@ export class QueryRouter {
    * Parse query using Gemini AI
    */
   private async parseWithGeminiAI(query: WeatherQuery): Promise<ParsedWeatherQuery> {
+    // Enhanced AI parser initialization safeguards
     if (!this.geminiParser) {
-      throw new Error('Gemini parser not available');
+      logger.warn('Gemini parser not available for AI fallback', { query: query.query });
+      throw new Error('Gemini parser not available - check API configuration');
     }
     
-    const parsingRequest = {
-      query: query.query,
-      context: typeof query.context === 'string' ? query.context : JSON.stringify(query.context),
-      preferences: {
-        language: 'en' as const,
-        temperatureUnit: 'celsius' as const,
-        detailLevel: 'basic' as const
+    // Validate parser readiness
+    if (typeof this.geminiParser.parseQuery !== 'function') {
+      logger.error('Gemini parser is malformed - parseQuery method missing');
+      throw new Error('Gemini parser is not properly initialized');
+    }
+    
+    try {
+      const parsingRequest = {
+        query: query.query,
+        context: typeof query.context === 'string' ? query.context : JSON.stringify(query.context),
+        preferences: {
+          language: 'en' as const,
+          temperatureUnit: 'celsius' as const,
+          detailLevel: 'basic' as const
+        }
+      };
+      
+      logger.info('Attempting AI parsing with Gemini', { queryLength: query.query.length });
+      
+      // Add timeout wrapper for AI parsing
+      const parseTimeout = 10000; // 10 seconds max
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('AI parsing timeout')), parseTimeout)
+      );
+      
+      const result = await Promise.race([
+        this.geminiParser.parseQuery(parsingRequest),
+        timeoutPromise
+      ]);
+      
+      if (!result || typeof result !== 'object') {
+        throw new Error('Invalid AI parser response format');
       }
-    };
-    
-    const result = await this.geminiParser.parseQuery(parsingRequest);
-    
-    if (!result.success) {
-      throw new Error(result.error?.message || 'AI parsing failed');
+      
+      if (!result.success) {
+        logger.warn('AI parsing failed', { error: result.error?.message });
+        throw new Error(result.error?.message || 'AI parsing failed');
+      }
+      
+      if (!result.result) {
+        throw new Error('AI parser returned empty result');
+      }
+      
+      logger.info('AI parsing successful', { confidence: result.result.confidence });
+      
+      // Convert Gemini result to QueryRouter format
+      return this.convertGeminiToQueryRouterFormat(result.result);
+      
+    } catch (error) {
+      logger.error('AI parsing error', { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        query: query.query.slice(0, 100) // Log only first 100 chars for privacy
+      });
+      
+      // Re-throw with more context
+      if (error instanceof Error) {
+        throw new Error(`AI parsing failed: ${error.message}`);
+      }
+      throw new Error('AI parsing failed due to unknown error');
     }
-    
-    // Convert Gemini result to QueryRouter format
-    return this.convertGeminiToQueryRouterFormat(result.result!);
   }
   
   /**

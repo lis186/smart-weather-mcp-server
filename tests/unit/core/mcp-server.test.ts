@@ -51,7 +51,7 @@ describe('ToolHandlerService', () => {
       it('should handle search_weather tool call', async () => {
         const query: WeatherQuery = {
           query: 'What is the weather in Tokyo?',
-          context: { location: 'Tokyo' }
+          context: 'location: Tokyo'
         };
 
         const result = await ToolHandlerService.handleToolCall('search_weather', query);
@@ -66,7 +66,7 @@ describe('ToolHandlerService', () => {
       it('should handle find_location tool call', async () => {
         const query: WeatherQuery = {
           query: 'Tokyo, Japan',
-          context: { country: 'Japan' }
+          context: 'country: Japan'
         };
 
         const result = await ToolHandlerService.handleToolCall('find_location', query);
@@ -80,10 +80,7 @@ describe('ToolHandlerService', () => {
       it('should handle get_weather_advice tool call', async () => {
         const query: WeatherQuery = {
           query: 'Should I bring an umbrella?',
-          context: { 
-            location: 'Tokyo',
-            activity: 'outdoor event'
-          }
+          context: 'location: Tokyo, activity: outdoor event'
         };
 
         const result = await ToolHandlerService.handleToolCall('get_weather_advice', query);

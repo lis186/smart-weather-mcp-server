@@ -169,49 +169,61 @@ export class ToolHandlerService {
       throw new McpError(ErrorCode.InvalidParams, 'Query parameter is required and must be a string');
     }
 
-    // Sanitize query - remove excessive whitespace and limit length
-    const sanitizedQuery = String(input.query).trim().slice(0, 1000);
+    // Enhanced input sanitization for query
+    let sanitizedQuery = String(input.query).trim();
+    
+    // Remove potential XSS/injection patterns
+    sanitizedQuery = sanitizedQuery
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags
+      .replace(/javascript:/gi, '') // Remove javascript: URLs
+      .replace(/on\w+\s*=/gi, '') // Remove event handlers like onclick=
+      .replace(/data:text\/html/gi, ''); // Remove data URLs
+    
+    // Limit length and check for empty result
+    sanitizedQuery = sanitizedQuery.slice(0, 1000);
     if (!sanitizedQuery) {
-      throw new McpError(ErrorCode.InvalidParams, 'Query cannot be empty');
+      throw new McpError(ErrorCode.InvalidParams, 'Query cannot be empty after sanitization');
+    }
+    
+    // Additional validation: prevent extremely long single words (potential DoS)
+    const words = sanitizedQuery.split(/\s+/);
+    const maxWordLength = 100;
+    if (words.some(word => word.length > maxWordLength)) {
+      throw new McpError(ErrorCode.InvalidParams, `Query contains words longer than ${maxWordLength} characters`);
     }
 
-    // Validate and sanitize context if provided (now a string per PRD)
+    // Validate and sanitize context (must be string per PRD)
     let sanitizedContext: WeatherQuery['context'] = undefined;
     if (input.context) {
       if (typeof input.context === 'string') {
-        // Sanitize string context - remove excessive whitespace and limit length
-        sanitizedContext = String(input.context).trim().slice(0, 500);
-        if (!sanitizedContext) {
-          sanitizedContext = undefined;
+        // Enhanced sanitization for context string
+        let contextStr = String(input.context).trim();
+        
+        // Remove potential XSS/injection patterns from context
+        contextStr = contextStr
+          .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+          .replace(/javascript:/gi, '')
+          .replace(/on\w+\s*=/gi, '')
+          .replace(/data:text\/html/gi, '');
+        
+        // Limit length and validate content
+        contextStr = contextStr.slice(0, 500);
+        
+        // Validate context format (should be key-value pairs)
+        if (contextStr && !/^[\w\s:,.-]+$/.test(contextStr)) {
+          throw new McpError(
+            ErrorCode.InvalidParams, 
+            'Context contains invalid characters. Use format: "key: value, key2: value2"'
+          );
         }
+        
+        sanitizedContext = contextStr || undefined;
       } else {
-        // Handle legacy object context for backward compatibility
-        // This should be removed once all clients migrate to string context
-        const context = input.context as Record<string, unknown>;
-        const contextParts: string[] = [];
-        
-        // Convert object context to string format
-        const stringFields = ['location', 'timeframe', 'country', 'region', 'activity'];
-        for (const field of stringFields) {
-          if (context[field] && typeof context[field] === 'string') {
-            contextParts.push(`${field}: ${String(context[field]).trim()}`);
-          }
-        }
-        
-        if (context.preferences && typeof context.preferences === 'object' && context.preferences !== null) {
-          const prefs = context.preferences as Record<string, unknown>;
-          const prefParts: string[] = [];
-          for (const [key, value] of Object.entries(prefs)) {
-            if (typeof key === 'string' && (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')) {
-              prefParts.push(`${key}: ${value}`);
-            }
-          }
-          if (prefParts.length > 0) {
-            contextParts.push(`preferences: ${prefParts.join(', ')}`);
-          }
-        }
-        
-        sanitizedContext = contextParts.join('; ').slice(0, 500) || undefined;
+        // Context must be string per PRD - reject object context
+        throw new McpError(
+          ErrorCode.InvalidParams, 
+          'Context parameter must be a string. Example: "location: Tokyo, timeframe: today"'
+        );
       }
     }
 

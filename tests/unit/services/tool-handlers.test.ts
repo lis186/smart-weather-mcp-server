@@ -42,11 +42,7 @@ describe('ToolHandlerService', () => {
     it('should handle search_weather with full context', async () => {
       const query: WeatherQuery = {
         query: 'What is the weather like in Tokyo today?',
-        context: {
-          location: 'Tokyo',
-          timeframe: 'today',
-          preferences: { units: 'metric' }
-        }
+        context: 'location: Tokyo, timeframe: today, preferences: units metric'
       };
 
       const result = await ToolHandlerService.handleToolCall('search_weather', query);
@@ -61,10 +57,7 @@ describe('ToolHandlerService', () => {
     it('should handle find_location with country context', async () => {
       const query: WeatherQuery = {
         query: 'Paris',
-        context: {
-          country: 'France',
-          region: 'Île-de-France'
-        }
+        context: 'country: France, region: Île-de-France'
       };
 
       const result = await ToolHandlerService.handleToolCall('find_location', query);
@@ -77,11 +70,7 @@ describe('ToolHandlerService', () => {
     it('should handle get_weather_advice with activity context', async () => {
       const query: WeatherQuery = {
         query: 'Should I bring an umbrella for my outdoor wedding?',
-        context: {
-          location: 'Central Park, NYC',
-          activity: 'outdoor wedding',
-          preferences: { conservative: true }
-        }
+        context: 'location: Central Park, NYC, activity: outdoor wedding, preferences: conservative true'
       };
 
       const result = await ToolHandlerService.handleToolCall('get_weather_advice', query);
@@ -176,15 +165,7 @@ describe('ToolHandlerService', () => {
     it('should maintain type safety with WeatherQuery interface', async () => {
       const query: WeatherQuery = {
         query: 'test',
-        context: {
-          location: 'test',
-          timeframe: 'test',
-          country: 'test',
-          region: 'test',
-          activity: 'test',
-          preferences: { test: 'value' },
-          customField: 'allowed due to index signature'
-        }
+        context: 'location: test, timeframe: test, country: test, region: test, activity: test, preferences: test value, customField: allowed'
       };
 
       // Should compile and run without type errors

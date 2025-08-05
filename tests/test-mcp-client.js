@@ -52,9 +52,7 @@ async function testMCPServer() {
       name: 'search_weather',
       arguments: {
         query: 'What is the weather like in Tokyo today?',
-        context: {
-          location: 'Tokyo, Japan'
-        }
+        context: 'location: Tokyo, Japan'
       }
     });
 
@@ -83,10 +81,7 @@ async function testMCPServer() {
       name: 'get_weather_advice',
       arguments: {
         query: 'Should I bring an umbrella?',
-        context: {
-          location: 'London',
-          activity: 'walking'
-        }
+        context: 'location: London, activity: walking'
       }
     });
 
