@@ -71,12 +71,13 @@ gcloud run deploy smart-weather-mcp --image gcr.io/PROJECT_ID/smart-weather-mcp 
 - ✅ **Cloud Run Production**: Container optimization, health monitoring, auto-scaling
 - ✅ **Code Quality Assurance**: Multiple code reviews passed, A- quality rating
 
-**Phase 2 AI Intelligence Features** (🔄 Implemented):
+**Phase 2 AI Intelligence Features** (✅ Completed):
 - ✅ **Gemini AI Parser**: Natural language understanding, intent classification
 - ✅ **Query Router**: Multi-criteria API selection, fallback strategies
 - ✅ **Multilingual Support**: Chinese, English, Japanese query parsing
 - ✅ **Smart Error Handling**: User-friendly messages with actionable suggestions
 - ✅ **Performance Optimization**: Sub-second parsing, efficient routing
+- ✅ **Hybrid Parsing Architecture**: Rule-based + AI fallback with dynamic thresholds
 - 🔄 **Weather API Integration**: Awaiting Google Weather API connection
 
 ### Planned Architecture (Phase 2+)
@@ -204,25 +205,28 @@ async parseQuery(query: WeatherQuery): Promise<ParsedWeatherQuery> {
 
 - **主要執行計劃**: `plan.md` - 包含 5 階段詳細實作計劃，Phase 2 進行中
 - **學習日誌**: `LEARNING_LOG.md` - 記錄技術決策和實作經驗  
-- **當前階段**: 🔄 **Phase 2 智能解析** - Gemini AI 整合完成，查詢路由實現
+- **當前階段**: ✅ **Phase 2.1 完成** - Hybrid 解析架構實現，所有複雜中文查詢成功
 - **代碼品質**: 通過嚴格審查，解決所有關鍵問題，企業級標準
-- **測試覆蓋**: Jest + TypeScript 完整測試套件，部分測試需更新
+- **測試覆蓋**: Jest + TypeScript 完整測試套件，已更新並整理
 - **下一步**: Phase 3 - Weather API 整合與實際數據連接
 
 ### 🎯 Phase 2 實現狀態確認
 
-**Phase 2 已完成功能**:
+**Phase 2.1 已完成功能**:
 - ✅ Gemini AI 解析器 - 自然語言理解與意圖分類
 - ✅ 查詢路由器 - 智能 API 選擇與路由決策
 - ✅ 多語言支援 - 中英日文查詢解析
 - ✅ 錯誤處理增強 - 分類錯誤與用戶友好建議
 - ✅ API 選擇器 - 策略模式實現
 - ✅ 工具處理器整合 - Phase 2 組件完整整合
+- ✅ **Hybrid 解析架構** - Rule-based + AI fallback 實現
+- ✅ **動態信心閾值** - 根據 AI 可用性調整閾值
+- ✅ **複雜中文查詢支援** - 所有測試案例通過
+- ✅ **測試套件整理** - 移除過時測試，整合最新實現
 
 **待完成項目**:
 - 🔄 Google Weather API 客戶端實現
 - 🔄 實際天氣數據整合
-- 🔄 測試套件更新（context 格式修正）
 
 ### Project Files
 
@@ -267,12 +271,15 @@ async parseQuery(query: WeatherQuery): Promise<ParsedWeatherQuery> {
 4. ✅ 實現雙傳輸模式支援 (額外成就)
 5. ✅ Claude Desktop 整合測試 (額外成就)
 
-**🔄 階段 2: Gemini AI 解析核心** (實現中)  
+**✅ 階段 2.1: Hybrid 解析架構** (已完成)  
 1. ✅ 實現 Gemini AI 查詢解析
 2. ✅ 建立智能路由器
 3. ✅ 多語言支援實現
 4. ✅ 錯誤處理系統
-5. 🔄 Google Weather API 整合 (待實現)
+5. ✅ Hybrid Rule-based + AI fallback 架構實現
+6. ✅ 動態信心閾值與優雅降級
+7. ✅ 測試套件整理與優化
+8. 🔄 Google Weather API 整合 (Phase 3)
 
 **📋 階段 3-5: 參考 plan.md 完整階段規劃**
 

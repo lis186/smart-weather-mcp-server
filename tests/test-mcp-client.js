@@ -15,7 +15,7 @@ async function testMCPServer() {
   try {
     // Start the MCP server process
     console.log('1. Starting MCP server...');
-    const serverProcess = spawn('node', ['dist/server.js'], {
+    const serverProcess = spawn('node', ['dist/unified-server.js', '--mode=stdio'], {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, NODE_ENV: 'development' }
     });
@@ -23,7 +23,7 @@ async function testMCPServer() {
     // Create MCP client
     const transport = new StdioClientTransport({
       command: 'node',
-      args: ['dist/server.js'],
+      args: ['dist/unified-server.js', '--mode=stdio'],
       env: { NODE_ENV: 'development' }
     });
 
@@ -52,9 +52,7 @@ async function testMCPServer() {
       name: 'search_weather',
       arguments: {
         query: 'What is the weather like in Tokyo today?',
-        context: {
-          location: 'Tokyo, Japan'
-        }
+        context: 'location: Tokyo, Japan'
       }
     });
 
@@ -83,10 +81,7 @@ async function testMCPServer() {
       name: 'get_weather_advice',
       arguments: {
         query: 'Should I bring an umbrella?',
-        context: {
-          location: 'London',
-          activity: 'walking'
-        }
+        context: 'location: London, activity: walking'
       }
     });
 

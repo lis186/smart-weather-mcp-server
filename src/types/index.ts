@@ -1,6 +1,6 @@
 export interface WeatherQuery {
   query: string;
-  context?: string; // Per PRD: context should be a string with preferences and additional context
+  context?: string;
 }
 
 export interface WeatherResponse {

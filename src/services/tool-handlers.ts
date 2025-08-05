@@ -169,49 +169,77 @@ export class ToolHandlerService {
       throw new McpError(ErrorCode.InvalidParams, 'Query parameter is required and must be a string');
     }
 
-    // Sanitize query - remove excessive whitespace and limit length
-    const sanitizedQuery = String(input.query).trim().slice(0, 1000);
+    // Enhanced input sanitization for query
+    let sanitizedQuery = String(input.query).trim();
+    
+    // Remove potential XSS/injection patterns
+    sanitizedQuery = sanitizedQuery
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags
+      .replace(/javascript:/gi, '') // Remove javascript: URLs
+      .replace(/on\w+\s*=/gi, '') // Remove event handlers like onclick=
+      .replace(/data:text\/html/gi, ''); // Remove data URLs
+    
+    // Limit length and check for empty result
+    sanitizedQuery = sanitizedQuery.slice(0, 1000);
     if (!sanitizedQuery) {
-      throw new McpError(ErrorCode.InvalidParams, 'Query cannot be empty');
+      throw new McpError(ErrorCode.InvalidParams, 'Query cannot be empty after sanitization');
+    }
+    
+    // Additional validation: prevent extremely long single words (potential DoS)
+    // Increased limit to accommodate complex compound words and URLs
+    const words = sanitizedQuery.split(/\s+/);
+    const maxWordLength = 200; // Increased from 100 to support longer technical terms and URLs
+    if (words.some(word => word.length > maxWordLength)) {
+      throw new McpError(ErrorCode.InvalidParams, `Query contains words longer than ${maxWordLength} characters`);
     }
 
-    // Validate and sanitize context if provided (now a string per PRD)
+    // Validate and sanitize context (must be string per PRD)
     let sanitizedContext: WeatherQuery['context'] = undefined;
     if (input.context) {
       if (typeof input.context === 'string') {
-        // Sanitize string context - remove excessive whitespace and limit length
-        sanitizedContext = String(input.context).trim().slice(0, 500);
-        if (!sanitizedContext) {
-          sanitizedContext = undefined;
+        // Enhanced sanitization for context string
+        let contextStr = String(input.context).trim();
+        
+        // Remove potential XSS/injection patterns from context
+        contextStr = contextStr
+          .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+          .replace(/javascript:/gi, '')
+          .replace(/on\w+\s*=/gi, '')
+          .replace(/data:text\/html/gi, '');
+        
+        // Limit length and validate content
+        contextStr = contextStr.slice(0, 500);
+        
+        // Validate context format (should be key-value pairs)
+        // Allow Unicode characters for international support (Chinese, Japanese, etc.)
+        // Only block obvious injection attempts
+        if (contextStr) {
+          // Check for dangerous patterns but allow Unicode
+          const dangerousPatterns = /<[^>]+>|[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/;
+          if (dangerousPatterns.test(contextStr)) {
+            throw new McpError(
+              ErrorCode.InvalidParams, 
+              'Context contains invalid control characters or HTML tags'
+            );
+          }
+          
+          // Validate basic key-value structure (loose validation to support Unicode)
+          const keyValuePattern = /^[^:]+:[^,]+(,\s*[^:]+:[^,]+)*$/;
+          if (!keyValuePattern.test(contextStr)) {
+            throw new McpError(
+              ErrorCode.InvalidParams,
+              'Context must be in key-value format. Example: "location: 東京, timeframe: 明天"'
+            );
+          }
         }
+        
+        sanitizedContext = contextStr || undefined;
       } else {
-        // Handle legacy object context for backward compatibility
-        // This should be removed once all clients migrate to string context
-        const context = input.context as Record<string, unknown>;
-        const contextParts: string[] = [];
-        
-        // Convert object context to string format
-        const stringFields = ['location', 'timeframe', 'country', 'region', 'activity'];
-        for (const field of stringFields) {
-          if (context[field] && typeof context[field] === 'string') {
-            contextParts.push(`${field}: ${String(context[field]).trim()}`);
-          }
-        }
-        
-        if (context.preferences && typeof context.preferences === 'object' && context.preferences !== null) {
-          const prefs = context.preferences as Record<string, unknown>;
-          const prefParts: string[] = [];
-          for (const [key, value] of Object.entries(prefs)) {
-            if (typeof key === 'string' && (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')) {
-              prefParts.push(`${key}: ${value}`);
-            }
-          }
-          if (prefParts.length > 0) {
-            contextParts.push(`preferences: ${prefParts.join(', ')}`);
-          }
-        }
-        
-        sanitizedContext = contextParts.join('; ').slice(0, 500) || undefined;
+        // Context must be string per PRD - reject object context
+        throw new McpError(
+          ErrorCode.InvalidParams, 
+          'Context parameter must be a string. Example: "location: Tokyo, timeframe: today"'
+        );
       }
     }
 
@@ -262,80 +290,88 @@ export class ToolHandlerService {
       const routingResult = await this.queryRouter.routeQuery(
         { 
           query: query.query,
-          userContext: query.context  // Pass user context to router!
+          context: query.context  // Pass context as string per PRD
         },
         { 
           apiHealth: { 
-            google_current_conditions: 'healthy',
-            google_daily_forecast: 'healthy',
-            google_hourly_forecast: 'healthy'
+            google_current_conditions: { available: true, latency: 200, errorRate: 0.01 },
+            google_daily_forecast: { available: true, latency: 300, errorRate: 0.02 },
+            google_hourly_forecast: { available: true, latency: 350, errorRate: 0.02 }
           },
-          responseTimeHistory: {},
-          currentUsage: {},
-          cacheStatus: { hits: false, misses: true }
+          timestamp: new Date()
         }
       );
 
-      if (routingResult.success && routingResult.decision && routingResult.parsedQuery) {
-        const { selectedAPI, confidence: apiConfidence } = routingResult.decision;
-        const parsedQuery = routingResult.parsedQuery; // TDD FIX: Use actual parsed data!
-        
-        // Use parsing confidence from metadata, not API selection confidence
-        const parsingConfidence = routingResult.metadata?.parsingConfidence || parsedQuery.intent?.confidence || apiConfidence;
-        
-        // Check parsing source to show AI status
-        const parsingSource = (parsedQuery as any).source || 'unknown';
-        let aiStatusMessage = '';
-        
-        if (parsingSource === 'rules_only' || parsingSource === 'rules_fallback') {
-          aiStatusMessage = '\n⚠️ **AI Parser Status:** Gemini AI not available - using simplified rule-based parsing';
-        } else if (parsingSource === 'hybrid') {
-          aiStatusMessage = '\n🤖 **AI Parser Status:** Gemini AI enhanced parsing used';
-        } else if (parsingSource === 'rules') {
-          aiStatusMessage = '\n📏 **AI Parser Status:** High confidence rule-based parsing (AI available but not needed)';
-        }
-        
+      // Check if routing was successful
+      if (!routingResult.success || !routingResult.decision || !routingResult.parsedQuery) {
         return {
           content: [
             {
               type: 'text',
-              text: `🌤️ **Phase 2 Weather Search Results**\n\n` +
-                   `**Query Analysis:**\n` +
-                   `- Original: "${query.query}"\n` +
-                   `- Location: ${parsedQuery.location?.name || 'Not specified'}\n` +
-                   `- Intent: ${parsedQuery.intent?.primary || 'Unknown'}\n` +
-                   `- Language: ${parsedQuery.dataPreferences?.language || 'en'}\n` +
-                   `- Confidence: ${Math.round(parsingConfidence * 100)}%\n\n` +
-                   `**Routing Decision:**\n` +
-                   `- Selected API: ${selectedAPI.id}\n` +
-                   `- API Provider: ${(selectedAPI as any).provider || 'Google'}\n` +
-                   `- Endpoint: ${selectedAPI.endpoint || 'weather'}\n\n` +
-                   `**Weather Metrics:** ${parsedQuery.dataPreferences?.metrics?.join(', ') || 'temperature, conditions'}${aiStatusMessage}\n\n` +
-                   `*Note: This shows Phase 2 intelligent parsing and routing. Weather APIs will be connected in Phase 3.*`
-            },
-          ],
-        };
-      } else {
-        // Handle routing failure with error details
-        const errorMessage = routingResult.error?.message || 'Unknown routing error';
-        const suggestions = routingResult.error?.suggestedAction || 'Try rephrasing your query';
-        
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `⚠️ **Weather Search - Routing Issue**\n\n` +
+              text: `⚠️ **Weather Search Error**\n\n` +
                    `**Query:** "${query.query}"\n` +
-                   `**Issue:** ${errorMessage}\n` +
-                   `**Suggestions:** ${suggestions}\n\n` +
-                   `*This demonstrates Phase 2 error handling with user-friendly suggestions.*`
+                   `**Error:** ${routingResult.error?.message || 'Routing failed'}\n` +
+                   `**Suggestions:** ${routingResult.error?.suggestions?.join(', ') || 'Try being more specific'}\n\n` +
+                   `*Phase 2 error handling provides helpful guidance.*`
             },
           ],
         };
       }
+
+      const { decision, parsedQuery } = routingResult;
+      const apiConfidence = decision.confidence;
+      
+      // Use parsing confidence from parsed query
+      const parsingConfidence = parsedQuery.confidence || apiConfidence;
+      
+      // Check parsing source to show AI status
+      const parsingSource = parsedQuery.parsingSource || 'unknown';
+      let aiStatusMessage = '';
+      
+      if (parsingSource === 'rules_only' || parsingSource === 'rules_fallback') {
+        aiStatusMessage = '\n⚠️ **AI Parser Status:** Gemini AI not available - using simplified rule-based parsing';
+      } else if (parsingSource === 'rules_with_ai_fallback') {
+        aiStatusMessage = '\n🤖 **AI Parser Status:** Gemini AI enhanced parsing used';
+      } else if (parsingSource === 'ai_only') {
+        aiStatusMessage = '\n🤖 **AI Parser Status:** AI-powered parsing';
+      }
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `🌤️ **Phase 2 Weather Search Results**\n\n` +
+                 `**Query Analysis:**\n` +
+                 `- Original: "${query.query}"\n` +
+                 `- Location: ${parsedQuery.location.name || 'Not specified'}\n` +
+                 `- Intent: ${parsedQuery.intent.primary || 'Unknown'}\n` +
+                 `- Language: ${parsedQuery.language || 'en'}\n` +
+                 `- Confidence: ${Math.round(parsingConfidence * 100)}%\n\n` +
+                 `**Routing Decision:**\n` +
+                 `- Selected API: ${decision.selectedAPI.name}\n` +
+                 `- API Confidence: ${Math.round(apiConfidence * 100)}%\n` +
+                 `- Reasoning: ${decision.reasoning}\n\n` +
+                 `**Weather Metrics:** ${parsedQuery.metrics?.join(', ') || 'temperature, conditions'}${aiStatusMessage}\n\n` +
+                 `*Note: This shows Phase 2 intelligent parsing and routing. Weather APIs will be connected in Phase 3.*`
+          },
+        ],
+      };
     } catch (error) {
       logger.error('Search weather routing error', { query: query.query }, error instanceof Error ? error : new Error(String(error)));
-      return this.fallbackResponse('search_weather', query, error instanceof Error ? error.message : String(error));
+      
+      // Return fallback response with error details
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `⚠️ **Weather Search Error**\n\n` +
+                 `**Query:** "${query.query}"\n` +
+                 `**Error:** ${error instanceof Error ? error.message : 'Unknown error'}\n` +
+                 `**Suggestions:** Try specifying a clear location and weather information type.\n\n` +
+                 `*Phase 2 error handling provides helpful guidance.*`
+          },
+        ],
+      };
     }
   }
 
@@ -415,63 +451,44 @@ export class ToolHandlerService {
     try {
       // Use Phase 2 query router with advice-specific context
       const routingResult = await this.queryRouter.routeQuery(
-        { query: query.query },
+        { 
+          query: query.query,
+          context: query.context
+        },
         { 
           apiHealth: { 
-            google_current_conditions: 'healthy'
+            google_current_conditions: { available: true, latency: 200, errorRate: 0.01 }
           },
-          responseTimeHistory: {},
-          currentUsage: {},
-          cacheStatus: { hits: false, misses: true }
+          timestamp: new Date()
         }
       );
 
-      if (routingResult.success && routingResult.decision) {
-        const { confidence } = routingResult.decision;
-        const parsedQuery = (routingResult as any).parsedQuery || { 
-          location: { name: 'Unknown' }, 
-          intent: { primary: 'WEATHER_ADVICE' },
-          userPreferences: { language: 'en' },
-          weatherMetrics: ['general conditions'],
-          timeScope: { type: 'current' }
-        };
-        
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `💡 **Phase 2 Weather Advice**\n\n` +
-                   `**Query Analysis:**\n` +
-                   `- Original: "${query.query}"\n` +
-                   `- Intent: ${parsedQuery.intent?.primary || 'WEATHER_ADVICE'}\n` +
-                   `- Location: ${parsedQuery.location?.name || 'Not specified'}\n` +
-                   `- Language: ${parsedQuery.dataPreferences?.language || 'en'}\n` +
-                   `- Confidence: ${Math.round((parsedQuery.intent?.confidence || confidence) * 100)}%\n\n` +
-                   `**Weather Focus:**\n` +
-                   `- Metrics: ${parsedQuery.weatherMetrics?.join(', ') || 'general conditions'}\n` +
-                   `- Time Scope: ${parsedQuery.timeScope?.type || 'current'}\n\n` +
-                   `**Context Information:** ${query.context || 'No additional context provided'}\n\n` +
-                   `*Phase 2 demonstrates intelligent advice parsing. Weather data integration comes in Phase 3.*`
-            },
-          ],
-        };
-      } else {
-        const errorMessage = routingResult.error?.message || 'Could not process advice request';
-        const suggestions = routingResult.error?.suggestedAction || 'Try asking more specific questions about weather conditions';
-        
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `⚠️ **Weather Advice - Processing Issue**\n\n` +
-                   `**Query:** "${query.query}"\n` +
-                   `**Issue:** ${errorMessage}\n` +
-                   `**Suggestions:** ${suggestions}\n\n` +
-                   `*This demonstrates Phase 2 intelligent error handling.*`
-            },
-          ],
-        };
+      if (!routingResult.success || !routingResult.decision || !routingResult.parsedQuery) {
+        return this.fallbackResponse('get_weather_advice', query, routingResult.error?.message || 'Routing failed');
       }
+
+      const { parsedQuery, decision } = routingResult;
+      const confidence = decision.confidence;
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `💡 **Phase 2 Weather Advice**\n\n` +
+                 `**Query Analysis:**\n` +
+                 `- Original: "${query.query}"\n` +
+                 `- Intent: ${parsedQuery.intent.primary || 'WEATHER_ADVICE'}\n` +
+                 `- Location: ${parsedQuery.location.name || 'Not specified'}\n` +
+                 `- Language: ${parsedQuery.language || 'en'}\n` +
+                 `- Confidence: ${Math.round(parsedQuery.confidence * 100)}%\n\n` +
+                 `**Weather Focus:**\n` +
+                 `- Metrics: ${parsedQuery.metrics?.join(', ') || 'general conditions'}\n` +
+                 `- Time Scope: ${parsedQuery.timeScope?.type || 'current'}\n\n` +
+                 `**Context Information:** ${query.context || 'No additional context provided'}\n\n` +
+                 `*Phase 2 demonstrates intelligent advice parsing. Weather data integration comes in Phase 3.*`
+          },
+        ],
+      };
     } catch (error) {
       logger.error('Weather advice error', { query: query.query }, error instanceof Error ? error : new Error(String(error)));
       return this.fallbackResponse('get_weather_advice', query, error instanceof Error ? error.message : String(error));

@@ -53,12 +53,5 @@ export default {
   clearMocks: true,
   
   // Verbose output
-  verbose: true,
-  
-  // Global configuration for ts-jest
-  globals: {
-    'ts-jest': {
-      useESM: true
-    }
-  }
+  verbose: true
 };

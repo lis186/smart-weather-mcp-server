@@ -1,185 +1,209 @@
 /**
- * Type definitions for intelligent query routing and API selection
+ * Query Routing Types for Smart Weather MCP Server
+ * Defines types for intelligent query routing and API selection
  */
 
-export interface ParsedWeatherQuery {
-  /** Original user query */
-  originalQuery: string;
-  
-  /** Extracted location information */
-  location: {
-    name?: string;
-    coordinates?: {
-      lat: number;
-      lng: number;
-    };
-    placeId?: string;
-    confidence: number;
-  };
-  
-  /** Time-related parameters */
-  timeframe: {
-    type: 'current' | 'forecast' | 'historical';
-    startTime?: Date;
-    endTime?: Date;
-    duration?: string; // e.g., "3 hours", "2 days"
-    confidence: number;
-  };
-  
-  /** Weather data preferences */
-  dataPreferences: {
-    /** What specific weather data is requested */
-    metrics: WeatherMetric[];
-    /** Preferred units */
-    units?: 'metric' | 'imperial';
-    /** Language preference */
-    language?: string;
-    /** Detail level requested */
-    detailLevel: 'basic' | 'detailed' | 'comprehensive';
-  };
-  
-  /** Query intent classification */
-  intent: {
-    primary: WeatherIntent;
-    secondary?: WeatherIntent[];
-    confidence: number;
-  };
-  
-  /** Context from user (raw string per PRD) */
-  context?: string;
-  
-  /** Parsing source indication for debugging */
-  source?: 'rules' | 'hybrid' | 'rules_fallback' | 'rules_only' | 'error_fallback';
-}
+/**
+ * Weather intent classifications
+ */
+export type WeatherIntent = 
+  | 'current_conditions'
+  | 'forecast'
+  | 'historical'
+  | 'air_quality'
+  | 'marine_conditions'
+  | 'weather_advice'
+  | 'location_search'
+  | 'unknown';
 
+/**
+ * Weather metrics that can be requested
+ */
 export type WeatherMetric = 
   | 'temperature'
   | 'humidity'
   | 'precipitation'
-  | 'wind'
+  | 'wind_speed'
+  | 'wind_direction'
   | 'pressure'
   | 'visibility'
   | 'uv_index'
   | 'air_quality'
-  | 'conditions'
-  | 'feels_like'
-  | 'dew_point';
+  | 'wave_height'
+  | 'wave_period'
+  | 'tide_times'
+  | 'pollen_count'
+  | 'unknown';
 
-export type WeatherIntent = 
-  | 'current_conditions'
-  | 'daily_forecast'
-  | 'hourly_forecast'
-  | 'historical_data'
-  | 'location_search'
-  | 'weather_advice'
-  | 'severe_weather'
-  | 'planning_advice';
+/**
+ * Parsed weather query with extracted intent and parameters
+ */
+export interface ParsedWeatherQuery {
+  /** Original query text */
+  originalQuery: string;
+  
+  /** Extracted location with confidence scoring */
+  location: {
+    name: string | null;
+    confidence: number;
+  };
+  
+  /** Classified weather intent with confidence scoring */
+  intent: {
+    primary: WeatherIntent;
+    confidence: number;
+  };
+  
+  /** Time scope for the query */
+  timeScope: {
+    type: 'current' | 'forecast' | 'historical';
+    specificTime?: string;
+    duration?: string;
+  };
+  
+  /** Specific weather metrics requested */
+  metrics: WeatherMetric[];
+  
+  /** Activity context (surfing, hiking, etc.) */
+  activityContext?: string;
+  
+  /** Confidence score of the parsing (0-1) */
+  confidence: number;
+  
+  /** Language of the original query */
+  language: 'en' | 'zh-TW' | 'ja';
+  
+  /** Source of parsing (rules, ai, hybrid) */
+  parsingSource: 'rules_only' | 'ai_only' | 'rules_with_ai_fallback' | 'rules_fallback';
+  
+  /** Additional context as optional string (per PRD: all context must be strings) */
+  context?: string;
+}
 
-export interface APIEndpoint {
-  /** API endpoint identifier */
-  id: string;
-  /** Human-readable name */
-  name: string;
-  /** API base URL or path */
-  endpoint: string;
-  /** API category */
-  category: 'weather' | 'geocoding' | 'places';
-  /** Supported intents */
-  supportedIntents: WeatherIntent[];
-  /** Required parameters */
-  requiredParams: string[];
-  /** Optional parameters */
-  optionalParams: string[];
+/**
+ * Context for routing decisions
+ */
+export interface RoutingContext {
+  /** User preferences for units, language */
+  userPreferences?: {
+    units: 'metric' | 'imperial';
+    language: string;
+    timezone?: string;
+  };
+  
+  /** API health and availability status */
+  apiHealth?: Record<string, {
+    available: boolean;
+    latency?: number;
+    errorRate?: number;
+  }>;
+  
+  /** Request metadata */
+  requestId?: string;
+  timestamp: Date;
+  
   /** Rate limiting info */
-  rateLimit?: {
-    requestsPerMinute: number;
-    requestsPerDay: number;
+  rateLimitInfo?: {
+    remaining: number;
+    resetTime: Date;
   };
 }
 
+/**
+ * API selection and configuration details
+ */
 export interface RoutingDecision {
-  /** Selected API endpoint */
-  selectedAPI: APIEndpoint;
-  /** Confidence in the routing decision */
+  /** Selected API with detailed information */
+  selectedAPI: {
+    id: string;
+    name: string;
+    endpoint: string;
+    category: string;
+    supportedIntents: string[];
+    requiredParams: string[];
+    optionalParams: string[];
+  };
+  
+  /** Selection confidence score (0-1) */
   confidence: number;
-  /** Parameters to send to the API */
+  
+  /** API-specific parameters for the request */
   apiParameters: Record<string, unknown>;
-  /** Fallback APIs in order of preference */
-  fallbacks: APIEndpoint[];
-  /** Reasoning for the decision */
+  
+  /** Fallback APIs if primary fails */
+  fallbacks: string[];
+  
+  /** Human-readable reasoning for selection */
   reasoning: string;
-  /** Estimated response time */
+  
+  /** Estimated response time in milliseconds */
   estimatedResponseTime: number;
 }
 
-export interface RoutingContext {
-  /** Current API health status */
-  apiHealth: Record<string, 'healthy' | 'degraded' | 'unavailable'>;
-  /** Recent API response times */
-  responseTimeHistory: Record<string, number[]>;
-  /** Current API usage */
-  currentUsage: Record<string, number>;
-  /** Cache availability */
-  cacheStatus: Record<string, boolean>;
-  /** User preferences */
-  userPreferences?: {
-    preferredAPIs?: string[];
-    maxResponseTime?: number;
-    qualityOverSpeed?: boolean;
-  };
-}
-
-export type RoutingError = 
-  | 'LOCATION_NOT_FOUND'
-  | 'AMBIGUOUS_LOCATION'
-  | 'UNSUPPORTED_TIMEFRAME'
-  | 'API_UNAVAILABLE'
-  | 'RATE_LIMIT_EXCEEDED'
-  | 'INVALID_PARAMETERS'
-  | 'PARSING_FAILED'
-  | 'NO_SUITABLE_API';
-
+/**
+ * Result of query routing with selected API and parameters
+ */
 export interface RoutingResult {
+  /** Success status of the routing operation */
   success: boolean;
+  
+  /** Routing decision details (present when success is true) */
   decision?: RoutingDecision;
-  /** Parsed query data (TDD FIX: Include this!) */
+  
+  /** Parsed query information (present when success is true) */
   parsedQuery?: ParsedWeatherQuery;
-  error?: {
-    type: RoutingError;
-    message: string;
-    details?: string;
-    suggestedAction?: string;
-    retryable: boolean;
-  };
-  /** Alternative suggestions if routing fails */
-  alternatives?: RoutingDecision[];
-  /** Processing metadata */
+  
+  /** Performance and processing metadata */
   metadata: {
-    processingTime: number;
     parsingConfidence: number;
-    fallbacksConsidered: number;
-    /** Additional metadata for caching and fallbacks */
-    cachedAt?: number;
-    fallbackUsed?: boolean;
-    originalAPI?: string;
+    processingTime: number;
+    parsingSource: 'rules_only' | 'ai_only' | 'rules_with_ai_fallback' | 'rules_fallback';
+  };
+  
+  /** Error information (present when success is false) */
+  error?: {
+    code: string;
+    message: string;
+    suggestions?: string[];
   };
 }
 
+/**
+ * Routing error with context
+ */
+export interface RoutingError {
+  code: 'PARSING_FAILED' | 'NO_SUITABLE_API' | 'INVALID_QUERY' | 'TIMEOUT' | 'UNKNOWN';
+  message: string;
+  originalQuery: string;
+  suggestions?: string[];
+  context?: Record<string, unknown>;
+}
+
+/**
+ * Configuration for query router
+ */
 export interface QueryRouterConfig {
-  /** Default language for responses */
-  defaultLanguage: string;
-  /** Default units */
+  /** Default language for parsing */
+  defaultLanguage: 'en' | 'zh-TW' | 'ja';
+  
+  /** Default units for weather data */
   defaultUnits: 'metric' | 'imperial';
-  /** Maximum processing time for routing */
+  
+  /** Maximum time to spend on query processing (ms) */
   maxProcessingTime: number;
-  /** Minimum confidence threshold for routing */
+  
+  /** Minimum confidence threshold for accepting parsing results */
   minConfidenceThreshold: number;
-  /** AI fallback threshold - if rule confidence is below this, use AI */
-  aiThreshold?: number;
+  
+  /** Threshold for using AI fallback */
+  aiThreshold: number;
+  
   /** Enable fallback mechanisms */
   enableFallbacks: boolean;
-  /** API priority order */
+  
+  /** API priority order for selection */
   apiPriority: string[];
+  
   /** Caching configuration */
   caching: {
     enabled: boolean;
@@ -188,93 +212,76 @@ export interface QueryRouterConfig {
   };
 }
 
-export interface APIHealthStatus {
-  /** API endpoint ID */
-  apiId: string;
-  /** Current health status */
-  status: 'healthy' | 'degraded' | 'unavailable';
-  /** Last check timestamp */
-  lastCheck: Date;
-  /** Average response time */
-  avgResponseTime: number;
-  /** Success rate in last 100 requests */
-  successRate: number;
-  /** Error details if unhealthy */
-  errorDetails?: string;
-}
-
-// Google Weather API specific types
-export interface GoogleWeatherAPIConfig {
-  /** Current Conditions API */
-  currentConditions: APIEndpoint;
-  /** Daily Forecast API */
-  dailyForecast: APIEndpoint;
-  /** Hourly Forecast API */
-  hourlyForecast: APIEndpoint;
-  /** Hourly History API */
-  hourlyHistory: APIEndpoint;
-  /** Geocoding API */
-  geocoding: APIEndpoint;
-  /** Places API */
-  places: APIEndpoint;
-}
-
+/**
+ * Weather API response structure
+ */
 export interface WeatherAPIResponse {
-  /** Raw API response */
-  rawData: unknown;
-  /** Standardized data */
-  standardizedData: {
+  /** Response status */
+  status: 'success' | 'error' | 'partial';
+  
+  /** Weather data */
+  data?: {
     location: {
       name: string;
-      coordinates: { lat: number; lng: number };
+      coordinates: { lat: number; lon: number };
       timezone?: string;
     };
-    weather: {
-      current?: WeatherCondition;
-      forecast?: WeatherForecast[];
-      historical?: WeatherCondition[];
-    };
-    metadata: {
-      source: string;
+    
+    /** Current conditions */
+    current?: {
+      temperature: number;
+      humidity: number;
+      pressure: number;
+      windSpeed: number;
+      windDirection: number;
+      visibility: number;
+      uvIndex: number;
+      conditions: string;
       timestamp: Date;
-      units: 'metric' | 'imperial';
+    };
+    
+    /** Forecast data */
+    forecast?: Array<{
+      datetime: Date;
+      temperature: { min: number; max: number };
+      humidity: number;
+      precipitation: { probability: number; amount?: number };
+      wind: { speed: number; direction: number };
+      conditions: string;
+    }>;
+    
+    /** Air quality data */
+    airQuality?: {
+      aqi: number;
+      pollutants: Record<string, number>;
+      healthRecommendations: string[];
+    };
+    
+    /** Marine conditions */
+    marine?: {
+      waveHeight: number;
+      wavePeriod: number;
+      waveDirection: number;
+      tideInfo?: Array<{
+        type: 'high' | 'low';
+        time: Date;
+        height: number;
+      }>;
     };
   };
-  /** API-specific metadata */
-  apiMetadata: {
-    endpoint: string;
-    responseTime: number;
-    cacheHit: boolean;
-    confidence: number;
+  
+  /** Error information if status is error */
+  error?: {
+    code: string;
+    message: string;
+    details?: Record<string, unknown>;
   };
-}
-
-export interface WeatherCondition {
-  timestamp: Date;
-  temperature: number;
-  humidity: number;
-  precipitation?: {
-    probability: number;
-    amount?: number;
-    type?: 'rain' | 'snow' | 'mixed';
+  
+  /** Response metadata */
+  metadata: {
+    source: string;
+    timestamp: Date;
+    processingTime: number;
+    cacheHit?: boolean;
   };
-  wind: {
-    speed: number;
-    direction: number;
-    gust?: number;
-  };
-  pressure: number;
-  visibility: number;
-  conditions: string;
-  feelsLike?: number;
-  uvIndex?: number;
-  dewPoint?: number;
-}
-
-export interface WeatherForecast extends WeatherCondition {
-  /** For daily forecasts */
-  high?: number;
-  low?: number;
-  /** For hourly forecasts */
-  hourlyData?: WeatherCondition[];
 }

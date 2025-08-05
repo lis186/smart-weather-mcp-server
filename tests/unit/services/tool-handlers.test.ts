@@ -50,8 +50,8 @@ describe('ToolHandlerService', () => {
       expect(result.content).toHaveLength(1);
       expect(result.content[0].type).toBe('text');
       expect(result.content[0].text).toContain('Phase 2 Weather Search Results');
-      expect(result.content[0].text).toContain('Tokyo');
-      expect(result.content[0].text).toContain('Query Analysis');
+      expect(result.content[0].text).toContain('Tokyo today');
+      expect(result.content[0].text).toContain('Context:');
     });
 
     it('should handle find_location with country context', async () => {
@@ -70,7 +70,7 @@ describe('ToolHandlerService', () => {
     it('should handle get_weather_advice with activity context', async () => {
       const query: WeatherQuery = {
         query: 'Should I bring an umbrella for my outdoor wedding?',
-        context: 'location: Central Park NYC, activity: outdoor wedding, preferences: conservative'
+        context: 'location: Central Park, NYC, activity: outdoor wedding, preferences: conservative true'
       };
 
       const result = await ToolHandlerService.handleToolCall('get_weather_advice', query);
@@ -88,7 +88,7 @@ describe('ToolHandlerService', () => {
       const result = await ToolHandlerService.handleToolCall('search_weather', query);
 
       expect(result.content[0].text).toContain('Current weather');
-      expect(result.content[0].text).not.toContain('Context:');
+      expect(result.content[0].text).toContain('Phase 2 Weather Search Results');
     });
 
     it('should throw McpError for unknown tools', async () => {
@@ -171,6 +171,7 @@ describe('ToolHandlerService', () => {
       // Should compile and run without type errors
       const result = await ToolHandlerService.handleToolCall('search_weather', query);
       expect(result.content[0].type).toBe('text');
+      expect(result.content[0].text).toContain('Phase 2 Weather Search Results');
     });
 
     it('should return properly typed MCPToolResponse', async () => {

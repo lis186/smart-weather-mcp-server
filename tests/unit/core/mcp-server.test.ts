@@ -80,10 +80,7 @@ describe('ToolHandlerService', () => {
       it('should handle get_weather_advice tool call', async () => {
         const query: WeatherQuery = {
           query: 'Should I bring an umbrella?',
-          context: { 
-            location: 'Tokyo',
-            activity: 'outdoor event'
-          }
+          context: 'location: Tokyo, activity: outdoor event'
         };
 
         const result = await ToolHandlerService.handleToolCall('get_weather_advice', query);
