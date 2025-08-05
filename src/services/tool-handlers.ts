@@ -328,8 +328,8 @@ export class ToolHandlerService {
             text: `🌤️ **Phase 2 Weather Search Results**\n\n` +
                  `**Query Analysis:**\n` +
                  `- Original: "${query.query}"\n` +
-                 `- Location: ${parsedQuery.location || 'Not specified'}\n` +
-                 `- Intent: ${parsedQuery.intent || 'Unknown'}\n` +
+                 `- Location: ${parsedQuery.location.name || 'Not specified'}\n` +
+                 `- Intent: ${parsedQuery.intent.primary || 'Unknown'}\n` +
                  `- Language: ${parsedQuery.language || 'en'}\n` +
                  `- Confidence: ${Math.round(parsingConfidence * 100)}%\n\n` +
                  `**Routing Decision:**\n` +
@@ -458,8 +458,8 @@ export class ToolHandlerService {
             text: `💡 **Phase 2 Weather Advice**\n\n` +
                  `**Query Analysis:**\n` +
                  `- Original: "${query.query}"\n` +
-                 `- Intent: ${parsedQuery.intent || 'WEATHER_ADVICE'}\n` +
-                 `- Location: ${parsedQuery.location || 'Not specified'}\n` +
+                 `- Intent: ${parsedQuery.intent.primary || 'WEATHER_ADVICE'}\n` +
+                 `- Location: ${parsedQuery.location.name || 'Not specified'}\n` +
                  `- Language: ${parsedQuery.language || 'en'}\n` +
                  `- Confidence: ${Math.round(parsedQuery.confidence * 100)}%\n\n` +
                  `**Weather Focus:**\n` +

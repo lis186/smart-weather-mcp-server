@@ -42,11 +42,17 @@ export interface ParsedWeatherQuery {
   /** Original query text */
   originalQuery: string;
   
-  /** Extracted location (city, region, coordinates) */
-  location: string | null;
+  /** Extracted location with confidence scoring */
+  location: {
+    name: string | null;
+    confidence: number;
+  };
   
-  /** Classified weather intent */
-  intent: WeatherIntent;
+  /** Classified weather intent with confidence scoring */
+  intent: {
+    primary: WeatherIntent;
+    confidence: number;
+  };
   
   /** Time scope for the query */
   timeScope: {

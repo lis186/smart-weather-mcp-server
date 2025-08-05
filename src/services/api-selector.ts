@@ -83,8 +83,8 @@ export class APISelector {
     const startTime = Date.now();
     
     logger.info('Starting API selection', {
-      intent: parsedQuery.intent,
-      location: parsedQuery.location,
+      intent: parsedQuery.intent.primary,
+      location: parsedQuery.location.name,
       timeScope: parsedQuery.timeScope.type
     });
 
@@ -92,7 +92,7 @@ export class APISelector {
     const candidates = this.getAPICandidates(parsedQuery);
     
     if (candidates.length === 0) {
-      throw new Error(`No suitable APIs found for intent: ${parsedQuery.intent}`);
+      throw new Error(`No suitable APIs found for intent: ${parsedQuery.intent.primary}`);
     }
 
     // Score each candidate
@@ -135,7 +135,7 @@ export class APISelector {
 
     for (const [, api] of this.apiRegistry) {
       // Check if API supports the required intent
-      if (api.capabilities.includes(parsedQuery.intent) || 
+      if (api.capabilities.includes(parsedQuery.intent.primary) || 
           api.capabilities.includes('unknown')) {
         candidates.push(api);
       }
@@ -182,7 +182,7 @@ export class APISelector {
    * Score how well the API matches the query intent
    */
   private scoreIntentMatch(api: APIMetadata, parsedQuery: ParsedWeatherQuery): number {
-    if (api.capabilities.includes(parsedQuery.intent)) {
+    if (api.capabilities.includes(parsedQuery.intent.primary)) {
       return 1.0;
     }
     
@@ -198,7 +198,7 @@ export class APISelector {
       'unknown': []
     };
 
-    const relatedIntents = intentCompatibility[parsedQuery.intent] || [];
+    const relatedIntents = intentCompatibility[parsedQuery.intent.primary] || [];
     for (const relatedIntent of relatedIntents) {
       if (api.capabilities.includes(relatedIntent)) {
         return 0.6; // Partial match
@@ -212,7 +212,7 @@ export class APISelector {
    * Score geographic coverage for the query location
    */
   private scoreGeographicCoverage(api: APIMetadata, parsedQuery: ParsedWeatherQuery): number {
-    if (!parsedQuery.location) {
+    if (!parsedQuery.location.name) {
       return 0.8; // Neutral score for non-location-specific queries
     }
 
@@ -220,7 +220,7 @@ export class APISelector {
     // This is simplified - in production, you'd use more sophisticated geo-matching
     const hasGlobalCoverage = api.geographicCoverage.includes('global');
     const hasRegionalCoverage = api.geographicCoverage.some(region => 
-      parsedQuery.location?.toLowerCase().includes(region.toLowerCase())
+      parsedQuery.location.name?.toLowerCase().includes(region.toLowerCase())
     );
 
     if (hasGlobalCoverage) return 1.0;
@@ -309,13 +309,13 @@ export class APISelector {
     const scores = selectedCandidate.score.breakdown;
     
     if (scores.intentMatch > 0.8) {
-      reasons.push(`perfect match for ${parsedQuery.intent} queries`);
+      reasons.push(`perfect match for ${parsedQuery.intent.primary} queries`);
     } else if (scores.intentMatch > 0.5) {
-      reasons.push(`good compatibility with ${parsedQuery.intent} intent`);
+      reasons.push(`good compatibility with ${parsedQuery.intent.primary} intent`);
     }
     
     if (scores.geographicCoverage > 0.8) {
-      reasons.push(`excellent coverage for ${parsedQuery.location || 'requested area'}`);
+      reasons.push(`excellent coverage for ${parsedQuery.location.name || 'requested area'}`);
     }
     
     if (scores.reliability > 0.9) {

@@ -93,8 +93,14 @@ export class QueryRouter {
         selectedAPI: 'error',
         parsedQuery: {
           originalQuery: query.query,
-          location: null,
-          intent: 'unknown',
+          location: {
+            name: null,
+            confidence: 0.0
+          },
+          intent: {
+            primary: 'unknown',
+            confidence: 0.0
+          },
           timeScope: { type: 'current' },
           metrics: ['temperature'],
           confidence: 0,
@@ -166,8 +172,14 @@ export class QueryRouter {
     
     return {
       originalQuery: query.query,
-      location,
-      intent,
+      location: {
+        name: location,
+        confidence: location ? 0.8 : 0.0
+      },
+      intent: {
+        primary: intent,
+        confidence: intent === 'forecast' || intent === 'marine_conditions' ? 0.9 : 0.7
+      },
       timeScope,
       metrics,
       confidence,

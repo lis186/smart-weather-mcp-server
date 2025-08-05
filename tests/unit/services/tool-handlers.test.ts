@@ -49,7 +49,7 @@ describe('ToolHandlerService', () => {
 
       expect(result.content).toHaveLength(1);
       expect(result.content[0].type).toBe('text');
-      expect(result.content[0].text).toContain('Weather search placeholder');
+      expect(result.content[0].text).toContain('Phase 2 Weather Search Results');
       expect(result.content[0].text).toContain('Tokyo today');
       expect(result.content[0].text).toContain('Context:');
     });
@@ -62,7 +62,7 @@ describe('ToolHandlerService', () => {
 
       const result = await ToolHandlerService.handleToolCall('find_location', query);
 
-      expect(result.content[0].text).toContain('Location search placeholder');
+      expect(result.content[0].text).toContain('Phase 2 Location Search');
       expect(result.content[0].text).toContain('Paris');
       expect(result.content[0].text).toContain('France');
     });
@@ -75,7 +75,7 @@ describe('ToolHandlerService', () => {
 
       const result = await ToolHandlerService.handleToolCall('get_weather_advice', query);
 
-      expect(result.content[0].text).toContain('Weather advice placeholder');
+      expect(result.content[0].text).toContain('Phase 2 Weather Advice');
       expect(result.content[0].text).toContain('umbrella');
       expect(result.content[0].text).toContain('outdoor wedding');
     });
@@ -88,7 +88,7 @@ describe('ToolHandlerService', () => {
       const result = await ToolHandlerService.handleToolCall('search_weather', query);
 
       expect(result.content[0].text).toContain('Current weather');
-      expect(result.content[0].text).not.toContain('Context:');
+      expect(result.content[0].text).toContain('Phase 2 Weather Search Results');
     });
 
     it('should throw McpError for unknown tools', async () => {
@@ -157,7 +157,7 @@ describe('ToolHandlerService', () => {
       expect(callToolHandler).toBeDefined();
       const toolResult = await callToolHandler!(mockRequest);
       expect(toolResult.content).toHaveLength(1);
-      expect(toolResult.content[0].text).toContain('Weather search placeholder');
+      expect(toolResult.content[0].text).toContain('Phase 2 Weather Search Results');
     });
   });
 
@@ -171,6 +171,7 @@ describe('ToolHandlerService', () => {
       // Should compile and run without type errors
       const result = await ToolHandlerService.handleToolCall('search_weather', query);
       expect(result.content[0].type).toBe('text');
+      expect(result.content[0].text).toContain('Phase 2 Weather Search Results');
     });
 
     it('should return properly typed MCPToolResponse', async () => {
