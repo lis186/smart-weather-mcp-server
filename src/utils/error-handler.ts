@@ -43,7 +43,7 @@ export class WeatherErrorHandler {
     }
 
     // Handle routing errors
-    if (typeof error === 'string' && this.isRoutingError(error)) {
+    if (this.isRoutingError(error)) {
       return this.handleRoutingError(error as RoutingError, context);
     }
 
@@ -129,114 +129,18 @@ export class WeatherErrorHandler {
    * Handle routing-specific errors
    */
   private static handleRoutingError(error: RoutingError, context?: ErrorContext): UserFriendlyError {
-    switch (error) {
-      case 'LOCATION_NOT_FOUND':
-        return {
-          message: `I couldn't find the location "${context?.location || 'specified'}". Could you be more specific?`,
-          suggestions: [
-            "Include the country or state: 'Tokyo, Japan' or 'Paris, France'",
-            "Check the spelling of the location name",
-            "Try using a nearby major city instead",
-            "Use coordinates if you have them"
-          ],
-          retryable: true,
-          severity: 'low',
-          code: 'LOCATION_NOT_FOUND'
-        };
-
-      case 'AMBIGUOUS_LOCATION':
-        return {
-          message: `There are multiple places with that name. Could you be more specific about which "${context?.location}" you mean?`,
-          suggestions: [
-            "Add the country or state to clarify",
-            "Use the full official name of the location",
-            "Specify nearby landmarks or regions"
-          ],
-          retryable: true,
-          severity: 'low',
-          code: 'AMBIGUOUS_LOCATION'
-        };
-
-      case 'UNSUPPORTED_TIMEFRAME':
-        return {
-          message: "I can't provide weather data for that time period.",
-          suggestions: [
-            "For current weather, ask 'What's the weather now?'",
-            "For forecasts, I can provide up to 10 days ahead",
-            "For historical data, I can look back up to 30 days",
-            "Try a different time range within supported limits"
-          ],
-          retryable: true,
-          severity: 'low',
-          code: 'UNSUPPORTED_TIMEFRAME'
-        };
-
-      case 'API_UNAVAILABLE':
-        return {
-          message: "The weather service is temporarily unavailable. Please try again in a moment.",
-          suggestions: [
-            "Wait a few minutes and try your request again",
-            "Try asking for a different type of weather information",
-            "Check if you can access other weather services"
-          ],
-          retryable: true,
-          severity: 'high',
-          code: 'SERVICE_UNAVAILABLE'
-        };
-
-      case 'RATE_LIMIT_EXCEEDED':
-        return {
-          message: "I've received too many weather requests recently. Please wait a moment before trying again.",
-          suggestions: [
-            "Wait a few minutes before making another request",
-            "Try combining multiple questions into one",
-            "Consider upgrading to a higher tier service if available"
-          ],
-          retryable: true,
-          severity: 'medium',
-          code: 'RATE_LIMITED'
-        };
-
-      case 'PARSING_FAILED':
-        return {
-          message: "I'm having trouble understanding your weather request. Could you rephrase it more clearly?",
-          suggestions: [
-            "Use simpler language in your request",
-            "Be more specific about what weather information you want",
-            "Try asking in a different way",
-            "Example: 'What's the temperature in London today?'"
-          ],
-          retryable: true,
-          severity: 'low',
-          code: 'PARSING_FAILED'
-        };
-
-      case 'NO_SUITABLE_API':
-        return {
-          message: "I couldn't find a way to get the weather information you requested.",
-          suggestions: [
-            "Try asking for a more common type of weather data",
-            "Simplify your request to basic weather information",
-            "Check if the location you mentioned is correct"
-          ],
-          retryable: true,
-          severity: 'medium',
-          code: 'NO_API_AVAILABLE'
-        };
-
-      default:
-        return {
-          message: "I encountered an issue while routing your weather request.",
-          suggestions: [
-            "Please try your request again",
-            "Try rephrasing your query",
-            "Contact support if the problem continues"
-          ],
-          retryable: true,
-          severity: 'medium',
-          code: 'ROUTING_ERROR'
-        };
-    }
+    // Use the error message from the RoutingError object
+    return {
+      message: error.message || 'An error occurred while processing your weather request',
+      suggestions: error.suggestions || [
+        "Try rephrasing your query",
+        "Be more specific about the location",
+        "Check your internet connection"
+      ],
+      retryable: true,
+      severity: 'medium',
+      code: error.code
+    };
   }
 
   /**
@@ -481,18 +385,11 @@ export class WeatherErrorHandler {
   /**
    * Type guards for error detection
    */
-  private static isRoutingError(error: string): boolean {
-    const routingErrors: RoutingError[] = [
-      'LOCATION_NOT_FOUND',
-      'AMBIGUOUS_LOCATION',
-      'UNSUPPORTED_TIMEFRAME',
-      'API_UNAVAILABLE',
-      'RATE_LIMIT_EXCEEDED',
-      'INVALID_PARAMETERS',
-      'PARSING_FAILED',
-      'NO_SUITABLE_API'
-    ];
-    return routingErrors.includes(error as RoutingError);
+  private static isRoutingError(error: any): boolean {
+    return error && typeof error === 'object' && 
+           'code' in error && 
+           'message' in error && 
+           ['PARSING_FAILED', 'NO_SUITABLE_API', 'INVALID_QUERY', 'TIMEOUT', 'UNKNOWN'].includes(error.code);
   }
 
   private static isAPIError(error: any): boolean {

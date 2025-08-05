@@ -80,7 +80,7 @@ describe('Unicode Context Validation', () => {
     it('should reject HTML tags in context', async () => {
       const query: WeatherQuery = {
         query: 'weather',
-        context: 'location: <script>alert("xss")</script>Tokyo'
+        context: 'location: <div>Tokyo</div>'
       };
 
       await expect(
