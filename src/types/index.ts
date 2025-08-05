@@ -1,14 +1,6 @@
 export interface WeatherQuery {
   query: string;
-  context?: {
-    location?: string;
-    timeframe?: string;
-    preferences?: Record<string, unknown>;
-    country?: string;
-    region?: string;
-    activity?: string;
-    [key: string]: unknown;
-  };
+  context?: string; // Per PRD: context should be a string with preferences and additional context
 }
 
 export interface WeatherResponse {

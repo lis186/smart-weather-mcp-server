@@ -8,10 +8,48 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { WeatherQuery } from '../types/index.js';
 import { logger } from './logger.js';
 
+// Phase 2 imports
+import { QueryRouter } from './query-router.js';
+import { createWeatherParser } from './gemini-parser.js';
+import { WeatherErrorHandler } from '../utils/error-handler.js';
+
 /**
  * Shared tool handler service to avoid code duplication between STDIO and HTTP modes
+ * Phase 2: Integrated with Gemini AI parser and intelligent query routing
  */
 export class ToolHandlerService {
+  private static queryRouter: QueryRouter | null = null;
+  private static geminiParser: any = null;
+  private static errorHandler = new WeatherErrorHandler();
+
+  /**
+   * Initialize Phase 2 components
+   */
+  private static initializePhase2Components() {
+    // Initialize Gemini parser first if project ID is available
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT;
+    if (projectId && !this.geminiParser) {
+      try {
+        this.geminiParser = createWeatherParser(projectId, {
+          minConfidence: 0.3,
+          strictMode: false
+        });
+        logger.info('Phase 2 Gemini Parser initialized', { projectId });
+      } catch (error) {
+        logger.warn('Gemini Parser initialization failed', { error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+
+    // Initialize QueryRouter with Gemini parser
+    if (!this.queryRouter) {
+      this.queryRouter = new QueryRouter(this.geminiParser, {
+        minConfidenceThreshold: 0.3,
+        enableFallbacks: true,
+        aiThreshold: 0.50
+      });
+      logger.info('Phase 2 Query Router initialized');
+    }
+  }
   
   /**
    * Get the tool definitions for list_tools requests
@@ -21,32 +59,17 @@ export class ToolHandlerService {
       tools: [
         {
           name: 'search_weather',
-          description: 'Search for current weather, forecast, or historical weather data using natural language',
+          description: '幫助用戶查找任何地點的天氣資訊，智能判斷查詢類型並提供相應的當前、預報或歷史天氣資料',
           inputSchema: {
             type: 'object',
             properties: {
               query: {
                 type: 'string',
-                description: 'Natural language weather query (e.g., "What\'s the weather like in Tokyo today?", "Will it rain in London tomorrow?")',
+                description: '用戶的天氣查詢需求（如：台北今天天氣、東京下週預報、紐約上個月天氣）',
               },
               context: {
-                type: 'object',
-                description: 'Additional context for the weather query',
-                properties: {
-                  location: {
-                    type: 'string',
-                    description: 'Specific location if not mentioned in query',
-                  },
-                  timeframe: {
-                    type: 'string',
-                    description: 'Time period for the weather data',
-                  },
-                  preferences: {
-                    type: 'object',
-                    description: 'User preferences (units, language, etc.)',
-                  },
-                },
-                additionalProperties: true,
+                type: 'string',
+                description: '偏好設定和額外上下文，如溫度單位、語言、詳細程度等（可選）',
               },
             },
             required: ['query'],
@@ -54,28 +77,17 @@ export class ToolHandlerService {
         },
         {
           name: 'find_location',
-          description: 'Find and confirm location details for weather queries',
+          description: '幫助用戶發現和確認地點位置，解決地名模糊、地址不明確的問題，提供準確的地理資訊',
           inputSchema: {
             type: 'object',
             properties: {
               query: {
                 type: 'string',
-                description: 'Location search query (e.g., "Tokyo", "New York", "Paris France")',
+                description: '地點搜尋查詢（如：台北101、新竹科學園區、模糊地址描述）',
               },
               context: {
-                type: 'object',
-                description: 'Additional context for location search',
-                properties: {
-                  country: {
-                    type: 'string',
-                    description: 'Country to narrow down search',
-                  },
-                  region: {
-                    type: 'string',
-                    description: 'Region or state to narrow down search',
-                  },
-                },
-                additionalProperties: true,
+                type: 'string',
+                description: '地理偏好和搜尋限制，如偏好國家地區、返回格式等（可選）',
               },
             },
             required: ['query'],
@@ -83,32 +95,17 @@ export class ToolHandlerService {
         },
         {
           name: 'get_weather_advice',
-          description: 'Get personalized weather advice and recommendations',
+          description: '基於天氣資訊提供個人化建議和行動指導，幫助用戶做出明智的活動決策',
           inputSchema: {
             type: 'object',
             properties: {
               query: {
                 type: 'string',
-                description: 'Request for weather advice (e.g., "Should I bring an umbrella?", "What should I wear today?")',
+                description: '活動或決策查詢（如：適合出門嗎、該穿什麼衣服、需要帶傘嗎、適合運動嗎）',
               },
               context: {
-                type: 'object',
-                description: 'Context for weather advice',
-                properties: {
-                  location: {
-                    type: 'string',
-                    description: 'Location for the advice',
-                  },
-                  activity: {
-                    type: 'string',
-                    description: 'Planned activity or purpose',
-                  },
-                  preferences: {
-                    type: 'object',
-                    description: 'Personal preferences and constraints',
-                  },
-                },
-                additionalProperties: true,
+                type: 'string',
+                description: '個人偏好和活動類型，如戶外運動、商務會議、旅遊計畫等（可選）',
               },
             },
             required: ['query'],
@@ -119,10 +116,13 @@ export class ToolHandlerService {
   }
 
   /**
-   * Handle tool execution requests
+   * Handle tool execution requests with Phase 2 intelligence
    */
   static async handleToolCall(name: string, args: unknown) {
     try {
+      // Initialize Phase 2 components
+      this.initializePhase2Components();
+      
       // Runtime input validation
       const query = this.validateWeatherQuery(args);
       
@@ -131,11 +131,11 @@ export class ToolHandlerService {
       
       switch (name) {
         case 'search_weather':
-          return this.handleSearchWeather(query);
+          return await this.handleSearchWeather(query);
         case 'find_location':
-          return this.handleFindLocation(query);
+          return await this.handleFindLocation(query);
         case 'get_weather_advice':
-          return this.handleGetWeatherAdvice(query);
+          return await this.handleGetWeatherAdvice(query);
         default:
           throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
       }
@@ -145,6 +145,8 @@ export class ToolHandlerService {
         throw error;
       }
       logger.error('Tool execution error', { toolName: name }, error instanceof Error ? error : new Error(String(error)));
+      
+      // Fallback error handling
       throw new McpError(
         ErrorCode.InternalError,
         `Error executing tool ${name}: ${error instanceof Error ? error.message : String(error)}`
@@ -173,44 +175,43 @@ export class ToolHandlerService {
       throw new McpError(ErrorCode.InvalidParams, 'Query cannot be empty');
     }
 
-    // Validate and sanitize context if provided
+    // Validate and sanitize context if provided (now a string per PRD)
     let sanitizedContext: WeatherQuery['context'] = undefined;
-    if (input.context && typeof input.context === 'object' && input.context !== null) {
-      const context = input.context as Record<string, unknown>;
-      sanitizedContext = {};
-
-      // Sanitize string fields
-      const stringFields = ['location', 'timeframe', 'country', 'region', 'activity'];
-      for (const field of stringFields) {
-        if (context[field] && typeof context[field] === 'string') {
-          sanitizedContext[field] = String(context[field]).trim().slice(0, 200);
+    if (input.context) {
+      if (typeof input.context === 'string') {
+        // Sanitize string context - remove excessive whitespace and limit length
+        sanitizedContext = String(input.context).trim().slice(0, 500);
+        if (!sanitizedContext) {
+          sanitizedContext = undefined;
         }
-      }
-
-      // Sanitize preferences object
-      if (context.preferences && typeof context.preferences === 'object' && context.preferences !== null) {
-        sanitizedContext.preferences = {};
-        const prefs = context.preferences as Record<string, unknown>;
+      } else {
+        // Handle legacy object context for backward compatibility
+        // This should be removed once all clients migrate to string context
+        const context = input.context as Record<string, unknown>;
+        const contextParts: string[] = [];
         
-        // Only allow simple values in preferences
-        for (const [key, value] of Object.entries(prefs)) {
-          if (typeof key === 'string' && key.length <= 50) {
-            if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-              sanitizedContext.preferences[key] = value;
+        // Convert object context to string format
+        const stringFields = ['location', 'timeframe', 'country', 'region', 'activity'];
+        for (const field of stringFields) {
+          if (context[field] && typeof context[field] === 'string') {
+            contextParts.push(`${field}: ${String(context[field]).trim()}`);
+          }
+        }
+        
+        if (context.preferences && typeof context.preferences === 'object' && context.preferences !== null) {
+          const prefs = context.preferences as Record<string, unknown>;
+          const prefParts: string[] = [];
+          for (const [key, value] of Object.entries(prefs)) {
+            if (typeof key === 'string' && (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')) {
+              prefParts.push(`${key}: ${value}`);
             }
           }
-        }
-      }
-
-      // Allow other context fields but sanitize them
-      for (const [key, value] of Object.entries(context)) {
-        if (!stringFields.includes(key) && key !== 'preferences' && typeof key === 'string' && key.length <= 50) {
-          if (typeof value === 'string') {
-            sanitizedContext[key] = String(value).trim().slice(0, 200);
-          } else if (typeof value === 'number' || typeof value === 'boolean') {
-            sanitizedContext[key] = value;
+          if (prefParts.length > 0) {
+            contextParts.push(`preferences: ${prefParts.join(', ')}`);
           }
         }
+        
+        sanitizedContext = contextParts.join('; ').slice(0, 500) || undefined;
       }
     }
 
@@ -234,38 +235,262 @@ export class ToolHandlerService {
     });
   }
 
-  // Private tool handler methods
-  private static handleSearchWeather(query: WeatherQuery) {
-    // Phase 1: Basic placeholder implementation
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Weather search placeholder - Query: "${query.query}"${query.context ? `, Context: ${JSON.stringify(query.context)}` : ''}`,
+  // Phase 2 tool handler methods with intelligent parsing and routing
+  private static async handleSearchWeather(query: WeatherQuery) {
+    if (!this.queryRouter) {
+      return this.fallbackResponse('search_weather', query, 'Query router not initialized');
+    }
+
+    try {
+      // TDD FIX: Check for common issues before routing
+      if (query.query.trim().toLowerCase() === 'weather' && !query.context) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `⚠️ **Weather Search - Missing Information**\n\n` +
+                   `**Query:** "${query.query}"\n` +
+                   `**Issue:** No location specified\n` +
+                   `**Suggestions:** Please specify a location (e.g., "weather in Tokyo", "London weather today")\n\n` +
+                   `*Phase 2 intelligent error handling helps users provide better queries.*`
+            },
+          ],
+        };
+      }
+
+      // Use Phase 2 query router for intelligent routing
+      const routingResult = await this.queryRouter.routeQuery(
+        { 
+          query: query.query,
+          userContext: query.context  // Pass user context to router!
         },
-      ],
-    };
+        { 
+          apiHealth: { 
+            google_current_conditions: 'healthy',
+            google_daily_forecast: 'healthy',
+            google_hourly_forecast: 'healthy'
+          },
+          responseTimeHistory: {},
+          currentUsage: {},
+          cacheStatus: { hits: false, misses: true }
+        }
+      );
+
+      if (routingResult.success && routingResult.decision && routingResult.parsedQuery) {
+        const { selectedAPI, confidence: apiConfidence } = routingResult.decision;
+        const parsedQuery = routingResult.parsedQuery; // TDD FIX: Use actual parsed data!
+        
+        // Use parsing confidence from metadata, not API selection confidence
+        const parsingConfidence = routingResult.metadata?.parsingConfidence || parsedQuery.intent?.confidence || apiConfidence;
+        
+        // Check parsing source to show AI status
+        const parsingSource = (parsedQuery as any).source || 'unknown';
+        let aiStatusMessage = '';
+        
+        if (parsingSource === 'rules_only' || parsingSource === 'rules_fallback') {
+          aiStatusMessage = '\n⚠️ **AI Parser Status:** Gemini AI not available - using simplified rule-based parsing';
+        } else if (parsingSource === 'hybrid') {
+          aiStatusMessage = '\n🤖 **AI Parser Status:** Gemini AI enhanced parsing used';
+        } else if (parsingSource === 'rules') {
+          aiStatusMessage = '\n📏 **AI Parser Status:** High confidence rule-based parsing (AI available but not needed)';
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `🌤️ **Phase 2 Weather Search Results**\n\n` +
+                   `**Query Analysis:**\n` +
+                   `- Original: "${query.query}"\n` +
+                   `- Location: ${parsedQuery.location?.name || 'Not specified'}\n` +
+                   `- Intent: ${parsedQuery.intent?.primary || 'Unknown'}\n` +
+                   `- Language: ${parsedQuery.dataPreferences?.language || 'en'}\n` +
+                   `- Confidence: ${Math.round(parsingConfidence * 100)}%\n\n` +
+                   `**Routing Decision:**\n` +
+                   `- Selected API: ${selectedAPI.id}\n` +
+                   `- API Provider: ${(selectedAPI as any).provider || 'Google'}\n` +
+                   `- Endpoint: ${selectedAPI.endpoint || 'weather'}\n\n` +
+                   `**Weather Metrics:** ${parsedQuery.dataPreferences?.metrics?.join(', ') || 'temperature, conditions'}${aiStatusMessage}\n\n` +
+                   `*Note: This shows Phase 2 intelligent parsing and routing. Weather APIs will be connected in Phase 3.*`
+            },
+          ],
+        };
+      } else {
+        // Handle routing failure with error details
+        const errorMessage = routingResult.error?.message || 'Unknown routing error';
+        const suggestions = routingResult.error?.suggestedAction || 'Try rephrasing your query';
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `⚠️ **Weather Search - Routing Issue**\n\n` +
+                   `**Query:** "${query.query}"\n` +
+                   `**Issue:** ${errorMessage}\n` +
+                   `**Suggestions:** ${suggestions}\n\n` +
+                   `*This demonstrates Phase 2 error handling with user-friendly suggestions.*`
+            },
+          ],
+        };
+      }
+    } catch (error) {
+      logger.error('Search weather routing error', { query: query.query }, error instanceof Error ? error : new Error(String(error)));
+      return this.fallbackResponse('search_weather', query, error instanceof Error ? error.message : String(error));
+    }
   }
 
-  private static handleFindLocation(query: WeatherQuery) {
-    // Phase 1: Basic placeholder implementation
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Location search placeholder - Query: "${query.query}"${query.context ? `, Context: ${JSON.stringify(query.context)}` : ''}`,
-        },
-      ],
-    };
+  private static async handleFindLocation(query: WeatherQuery) {
+    try {
+      // Use Gemini parser for location parsing if available
+      if (this.geminiParser) {
+        const parseResult = await this.geminiParser.parseQuery({ query: query.query });
+        
+        if (parseResult.success && parseResult.result) {
+          const { location, intent, confidence, userPreferences } = parseResult.result;
+          
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `📍 **Phase 2 Location Search Results**\n\n` +
+                     `**Query Analysis:**\n` +
+                     `- Original: "${query.query}"\n` +
+                     `- Detected Location: ${location.name || 'Not found'}\n` +
+                     `- Coordinates: ${location.coordinates ? `${location.coordinates.lat}, ${location.coordinates.lng}` : 'Not available'}\n` +
+                     `- Location Confidence: ${Math.round((location.confidence || 0) * 100)}%\n` +
+                     `- Overall Confidence: ${Math.round((intent?.confidence || confidence) * 100)}%\n\n` +
+                     `**Intent Classification:**\n` +
+                     `- Primary Intent: ${intent.primary}\n` +
+                     `- Intent Confidence: ${Math.round(intent.confidence * 100)}%\n\n` +
+                     `**Language Detection:**\n` +
+                     `- Language: ${userPreferences.language}\n` +
+                     `- Units: ${userPreferences.temperatureUnit}\n\n` +
+                     `*This demonstrates Phase 2 Gemini AI multilingual location parsing.*`
+              },
+            ],
+          };
+        } else {
+          const errorMessage = parseResult.error?.message || 'Failed to parse location';
+          const suggestions = parseResult.error?.suggestions?.join(', ') || parseResult.error?.suggestedAction || 'Try being more specific with location names';
+          
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `❌ **Location Search - Parsing Issue**\n\n` +
+                     `**Query:** "${query.query}"\n` +
+                     `**Issue:** ${errorMessage}\n` +
+                     `**Suggestions:** ${suggestions}\n\n` +
+                     `*This shows Phase 2 error handling with helpful suggestions.*`
+              },
+            ],
+          };
+        }
+      } else {
+        // Fallback without Gemini parser
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `📍 **Phase 2 Location Search (Basic Mode)**\n\n` +
+                   `**Query:** "${query.query}"\n` +
+                   `**Status:** Gemini AI parser not available (requires GOOGLE_CLOUD_PROJECT)\n` +
+                   `**Fallback:** Basic location extraction would be performed here\n\n` +
+                   `*To see full Phase 2 capabilities, configure Google Cloud Project ID.*`
+            },
+          ],
+        };
+      }
+    } catch (error) {
+      logger.error('Find location error', { query: query.query }, error instanceof Error ? error : new Error(String(error)));
+      return this.fallbackResponse('find_location', query, error instanceof Error ? error.message : String(error));
+    }
   }
 
-  private static handleGetWeatherAdvice(query: WeatherQuery) {
-    // Phase 1: Basic placeholder implementation
+  private static async handleGetWeatherAdvice(query: WeatherQuery) {
+    if (!this.queryRouter) {
+      return this.fallbackResponse('get_weather_advice', query, 'Query router not initialized');
+    }
+
+    try {
+      // Use Phase 2 query router with advice-specific context
+      const routingResult = await this.queryRouter.routeQuery(
+        { query: query.query },
+        { 
+          apiHealth: { 
+            google_current_conditions: 'healthy'
+          },
+          responseTimeHistory: {},
+          currentUsage: {},
+          cacheStatus: { hits: false, misses: true }
+        }
+      );
+
+      if (routingResult.success && routingResult.decision) {
+        const { confidence } = routingResult.decision;
+        const parsedQuery = (routingResult as any).parsedQuery || { 
+          location: { name: 'Unknown' }, 
+          intent: { primary: 'WEATHER_ADVICE' },
+          userPreferences: { language: 'en' },
+          weatherMetrics: ['general conditions'],
+          timeScope: { type: 'current' }
+        };
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `💡 **Phase 2 Weather Advice**\n\n` +
+                   `**Query Analysis:**\n` +
+                   `- Original: "${query.query}"\n` +
+                   `- Intent: ${parsedQuery.intent?.primary || 'WEATHER_ADVICE'}\n` +
+                   `- Location: ${parsedQuery.location?.name || 'Not specified'}\n` +
+                   `- Language: ${parsedQuery.dataPreferences?.language || 'en'}\n` +
+                   `- Confidence: ${Math.round((parsedQuery.intent?.confidence || confidence) * 100)}%\n\n` +
+                   `**Weather Focus:**\n` +
+                   `- Metrics: ${parsedQuery.weatherMetrics?.join(', ') || 'general conditions'}\n` +
+                   `- Time Scope: ${parsedQuery.timeScope?.type || 'current'}\n\n` +
+                   `**Context Information:** ${query.context || 'No additional context provided'}\n\n` +
+                   `*Phase 2 demonstrates intelligent advice parsing. Weather data integration comes in Phase 3.*`
+            },
+          ],
+        };
+      } else {
+        const errorMessage = routingResult.error?.message || 'Could not process advice request';
+        const suggestions = routingResult.error?.suggestedAction || 'Try asking more specific questions about weather conditions';
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `⚠️ **Weather Advice - Processing Issue**\n\n` +
+                   `**Query:** "${query.query}"\n` +
+                   `**Issue:** ${errorMessage}\n` +
+                   `**Suggestions:** ${suggestions}\n\n` +
+                   `*This demonstrates Phase 2 intelligent error handling.*`
+            },
+          ],
+        };
+      }
+    } catch (error) {
+      logger.error('Weather advice error', { query: query.query }, error instanceof Error ? error : new Error(String(error)));
+      return this.fallbackResponse('get_weather_advice', query, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /**
+   * Fallback response for when Phase 2 components fail
+   */
+  private static fallbackResponse(toolName: string, query: WeatherQuery, errorDetails: string) {
     return {
       content: [
         {
           type: 'text',
-          text: `Weather advice placeholder - Query: "${query.query}"${query.context ? `, Context: ${JSON.stringify(query.context)}` : ''}`,
+          text: `🔧 **${toolName} - Fallback Mode**\n\n` +
+               `**Query:** "${query.query}"\n` +
+               `**Context:** ${query.context || 'None'}\n` +
+               `**Issue:** ${errorDetails}\n\n` +
+               `*Phase 2 components encountered an issue. This fallback ensures the tool still responds.*`
         },
       ],
     };

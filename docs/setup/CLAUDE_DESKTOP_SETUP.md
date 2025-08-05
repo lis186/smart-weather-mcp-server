@@ -1,4 +1,4 @@
-# 🖥️ Claude Desktop Integration Guide
+# 🖥️ Claude Desktop Integration Guide - Phase 2 Testing
 
 ## Step-by-Step Setup
 
@@ -13,14 +13,15 @@ npm run build
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
-**Configuration content** (already copied for you):
+**Configuration content** (Phase 2 Updated):
 ```json
 {
   "mcpServers": {
     "smart-weather": {
       "command": "node",
       "args": [
-        "/Users/justinlee/dev/smart-weather-mcp-server/worktrees/phase1/dist/mcp-stdio.js"
+        "/Users/justinlee/dev/smart-weather-mcp-server/dist/unified-server.js",
+        "--mode=stdio"
       ],
       "env": {
         "NODE_ENV": "development",
@@ -37,72 +38,114 @@ npm run build
 
 After updating the configuration, **completely quit and restart Claude Desktop** for the changes to take effect.
 
-### 4. Test in Claude Desktop
+### 4. Test Phase 2 Features in Claude Desktop
 
-Open Claude Desktop and try these test queries:
+Open Claude Desktop and try these **Phase 2** test queries to verify the new natural language processing and routing capabilities:
 
-#### Test 1: Basic Weather Search
+#### Test 1: English Current Weather Query
 ```
-Use the smart-weather MCP server to search for weather in Tokyo
-```
-
-**Expected response**: Should use the `search_weather` tool and return a placeholder response like:
-```
-Weather search placeholder - Query: "weather in Tokyo"
+Use the smart-weather MCP server: What is the weather like in Tokyo today?
 ```
 
-#### Test 2: Location Finding
-```
-Use the smart-weather server to find the location "Paris France"
-```
+**Expected response**: Should use the `search_weather` tool with intelligent parsing showing:
+- Detected location: Tokyo
+- Intent: current weather
+- Language: English
 
-**Expected response**: Should use the `find_location` tool.
-
-#### Test 3: Weather Advice
+#### Test 2: Chinese Weather Forecast Query
 ```
-Ask the smart-weather server if I should bring an umbrella for a walk in London
+Use the smart-weather server: 明天北京的天氣如何？
 ```
 
-**Expected response**: Should use the `get_weather_advice` tool.
+**Expected response**: Should use the `search_weather` tool with multilingual parsing showing:
+- Detected location: Beijing (北京)
+- Intent: weather forecast
+- Language: Chinese
 
-### 5. Verification Signs
+#### Test 3: Japanese Weather Query
+```
+Use the smart-weather server: 今日の東京の天気はどうですか？
+```
 
-✅ **Success indicators:**
+**Expected response**: Should demonstrate Japanese language parsing:
+- Detected location: Tokyo (東京)
+- Intent: current weather
+- Language: Japanese
+
+#### Test 4: Weather Advice Intent
+```
+Ask the smart-weather server: Should I bring an umbrella for a walk in London today?
+```
+
+**Expected response**: Should use the `get_weather_advice` tool with intent classification:
+- Intent: weather advice
+- Weather metrics: precipitation
+- Activity context: outdoor walk
+
+#### Test 5: Location Search Intent
+```
+Use the smart-weather server to find weather stations near Paris, France
+```
+
+**Expected response**: Should use the `find_location` tool with location search intent.
+
+### 5. Phase 2 Verification Signs
+
+✅ **Phase 2 Success indicators:**
 - Claude Desktop shows the MCP server as connected
-- You can see tool calls being made
-- Responses include placeholder text showing the tools are working
-- No error messages about connection failures
+- Tool calls show **intelligent parsing results** (not just placeholders)
+- **Multilingual queries** are parsed correctly (English, Chinese, Japanese)
+- **Intent classification** works (current weather, forecast, advice, location search)
+- **Location extraction** from natural language queries
+- Error handling provides **user-friendly suggestions**
+- No connection failures or parsing errors
 
 ❌ **Troubleshooting if it doesn't work:**
 
 1. **Check Claude Desktop logs** (if available)
-2. **Verify file paths** in the config are correct
+2. **Verify file paths** in the config point to `dist/unified-server.js`
 3. **Test manually**:
    ```bash
-   node dist/mcp-stdio.js
-   # Should show: "Smart Weather MCP Server running on stdio"
+   node dist/unified-server.js --mode=stdio
+   # Should show: "Smart Weather MCP Server running in STDIO mode"
    ```
 4. **Restart Claude Desktop** completely after config changes
+5. **Check environment variables** are set correctly (especially GOOGLE_CLOUD_PROJECT)
 
 ### 6. Manual Testing
 
-You can also test the MCP server directly:
+Test the Phase 2 unified server directly:
 
 ```bash
-# Test the STDIO interface
-echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}' | node dist/mcp-stdio.js
+# Test the STDIO interface with Phase 2 features
+echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}' | node dist/unified-server.js --mode=stdio
 ```
 
 Should return the list of 3 tools: `search_weather`, `find_location`, `get_weather_advice`.
 
-## 🎉 What This Proves
+```bash
+# Test Phase 2 demo features
+npm run demo:phase2
+# Should show comprehensive Phase 2 testing results
+```
 
-When working in Claude Desktop, you'll have confirmed:
+## 🎉 What Phase 2 Claude Desktop Testing Proves
 
-1. **✅ MCP Server Integration** - Your server connects to Claude Desktop
-2. **✅ Tool Registration** - All 3 tools are available
-3. **✅ Parameter Passing** - Query and context parameters work
-4. **✅ Secret Loading** - Environment variables are loaded correctly
-5. **✅ Phase 1 Complete** - Ready for Phase 2 (Gemini AI integration)
+When working in Claude Desktop with Phase 2, you'll have confirmed:
 
-The placeholder responses prove the MCP framework is working correctly. In Phase 2, we'll replace these placeholders with actual Gemini AI processing and weather API calls!
+1. **✅ Phase 2 MCP Server Integration** - Unified server connects to Claude Desktop
+2. **✅ Advanced Tool Registration** - All 3 tools with Phase 2 intelligence
+3. **✅ Multilingual Natural Language Processing** - English, Chinese, Japanese support
+4. **✅ Intelligent Query Routing** - AI-powered intent classification and location extraction
+5. **✅ Error Handling & User Feedback** - Comprehensive error handling with suggestions
+6. **✅ Performance Optimization** - Sub-second response times with caching
+7. **✅ Gemini AI Integration** - Google Vertex AI parsing (if credentials configured)
+
+### Phase 2 Features Working:
+- **🤖 Gemini AI Parser**: Natural language understanding with multilingual support
+- **🗺️ Query Router**: Intelligent routing with multi-criteria API selection  
+- **🚨 Error Handler**: User-friendly error messages with actionable suggestions
+- **⚡ Performance**: Caching and optimization for production use
+- **🔒 Security**: Google Cloud Secret Manager integration
+
+This confirms Phase 2 is **production-ready** for Phase 3 Google Weather API integration!

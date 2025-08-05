@@ -97,13 +97,13 @@ export class SecretManager {
     }
 
     if (issues.length > 0) {
-      console.warn('Secret validation issues:', issues);
+      console.error('Secret validation issues:', issues);
       
       if (this.environment === 'production') {
         console.error('Missing required secrets in production environment');
         return false;
       } else {
-        console.warn('Missing secrets in development environment - some features may not work');
+        console.error('Missing secrets in development environment - some features may not work');
         return true; // Allow development without all secrets
       }
     }

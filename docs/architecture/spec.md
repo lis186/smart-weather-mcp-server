@@ -6,7 +6,7 @@
 
 開發一個基於 Model Context Protocol (MCP) 的天氣查詢服務，讓 AI 助手能夠透過自然語言查詢全球天氣資訊。採用 Shopify Storefront MCP 設計哲學，提供用戶意圖導向的智能工具。
 
-**🎯 當前狀態**：Phase 1 已完成 - 基礎架構與核心 MCP 框架已實現，支援雙傳輸模式（STDIO/HTTP）。
+**🎯 當前狀態**：Phase 2.1 解析優化中 - 基礎架構完成，發現純規則解析限制，正實現 Rule-Based + AI Fallback 混合架構。
 
 **選擇 MCP 的原因**：
 
@@ -90,7 +90,7 @@ graph TB
             D --> E[Express HTTP Server]
             E --> F[Health Check Endpoint]
             E --> G[SSE Transport Handler]
-            G --> H[3個統一工具]
+            G --> H[3個MCP工具: search_weather, find_location, get_weather_advice]
             H --> I[查詢解析層]
             I --> J[Gemini AI 解析]
             J --> K[API 路由器]
@@ -112,8 +112,9 @@ graph TB
 
 ### 2.2 主要組件
 
-**已實現組件**（Phase 1）：
+**已實現組件**：
 
+**Phase 1 基礎架構（✅ 已完成）**：
 | 組件 | 職責 | 實現狀態 | 實現方式 |
 |------|------|----------|----------|
 | **Unified Server** | 傳輸模式切換 | ✅ 已完成 | 命令行參數解析 |
@@ -125,13 +126,20 @@ graph TB
 | **Secret Manager 客戶端** | 密鑰管理 | ✅ 已完成 | @google-cloud/secret-manager |
 | **記憶體快取** | 基礎快取框架 | ✅ 已完成 | JavaScript Map |
 
-**計劃中組件**（Phase 2+）：
+**Phase 2 智能解析（🔄 實現中）**：
+| 組件 | 職責 | 實現狀態 | 實現方式 |
+|------|------|----------|----------|
+| **Gemini 解析器** | 自然語言理解 | ✅ 已完成 | Gemini 2.5 Flash 整合 |
+| **查詢路由器** | 智能 API 選擇 | ✅ 已完成 | 多條件路由邏輯 |
+| **API 選擇器** | API 端點選擇 | ✅ 已完成 | 策略模式實現 |
+| **錯誤處理器** | 智能錯誤處理 | ✅ 已完成 | 分類錯誤與建議 |
 
+**計劃中組件**（Phase 3+）：
 | 組件 | 職責 | 實現狀態 | 計劃實現方式 |
 |------|------|----------|-------------|
-| **查詢解析器** | 自然語言理解 | 📋 計劃中 | Gemini API 整合 |
-| **API 路由器** | 智能 API 選擇 | 📋 計劃中 | 條件路由邏輯 |
 | **Google API 客戶端** | 外部 API 調用 | 📋 計劃中 | Axios HTTP 客戶端 |
+| **天氣數據解析器** | API 響應解析 | 📋 計劃中 | 統一數據模型 |
+| **進階快取系統** | 智能快取策略 | 📋 計劃中 | Redis/Memory 混合 |
 
 ## 3. 技術選擇與依賴
 
@@ -244,9 +252,9 @@ graph TB
     end
     
     subgraph "Smart Weather MCP Server"
-        B[search_weather 工具]
-        C[find_location 工具]
-        D[get_weather_advice 工具]
+        B[search_weather]
+        C[find_location]
+        D[get_weather_advice]
         E[Query Parser with Gemini]
         F[API Client Layer]
     end
@@ -329,7 +337,7 @@ server.setRequestHandler("tools/call", async (request) => {
 ```typescript
 {
   name: "search_weather",
-  description: "智能天氣查詢工具，支援當前、預報、歷史天氣查詢",
+  description: "幫助用戶查找任何地點的天氣資訊，智能判斷查詢類型並提供相應的當前、預報或歷史天氣資料",
   inputSchema: {
     type: "object",
     properties: {
@@ -353,7 +361,7 @@ server.setRequestHandler("tools/call", async (request) => {
 ```typescript
 {
   name: "find_location",
-  description: "地點發現與確認工具，解決地名模糊問題",
+  description: "幫助用戶發現和確認地點位置，解決地名模糊、地址不明確的問題，提供準確的地理資訊",
   inputSchema: {
     type: "object",
     properties: {
@@ -377,7 +385,7 @@ server.setRequestHandler("tools/call", async (request) => {
 ```typescript
 {
   name: "get_weather_advice", 
-  description: "基於天氣提供個人化建議工具",
+  description: "基於天氣資訊提供個人化建議和行動指導，幫助用戶做出明智的活動決策"
   inputSchema: {
     type: "object",
     properties: {
@@ -1179,16 +1187,20 @@ class Logger {
 - MCP 工具註冊框架
 - Claude Desktop 整合
 
-**📋 Phase 2 計劃**（核心功能）：
-- Gemini AI 解析整合
-- Google Weather API 整合
-- 智能查詢路由
-- 基礎錯誤處理
+**🔄 Phase 2.1 解析優化中**（混合解析架構）：
+- ✅ Gemini AI 解析整合（完成）
+- ✅ 查詢路由器實現（完成）
+- ✅ 多語言支援（中英日）（完成）
+- ✅ 智能錯誤處理（完成）
+- 🔄 **Rule-Based + AI Fallback** - 當前工作重點
+  - ❌ **問題**: 複雜中文查詢信心度不足 ("沖繩明天天氣預報 衝浪條件")
+  - 🛠️ **解決**: 實現混合解析架構，簡化規則 + AI fallback
+- 📋 Google Weather API 整合（Phase 3）
 
 **📋 Phase 3 計劃**（增強功能）：
-- 多語言支援
 - 進階快取策略
-- 效能監控
+- 效能監控與分析
+- 批次查詢支援
 - Cloud Run 部署優化
 
 ```mermaid
@@ -1227,9 +1239,9 @@ graph LR
 
 ## 14. 驗收標準
 
-### 14.1 Phase 1 功能需求驗收
+### 14.1 功能需求驗收
 
-**✅ 已完成**：
+**✅ Phase 1 已完成**：
 - [x] 3個 MCP 工具正常註冊和調用
 - [x] 雙傳輸模式支援（STDIO/HTTP）
 - [x] 統一傳輸模式切換
@@ -1239,11 +1251,17 @@ graph LR
 - [x] Express HTTP 服務器
 - [x] 健康檢查端點
 
-**📋 Phase 2+ 計劃中**：
-- [ ] Gemini AI 查詢解析準確率 ≥ 90%
-- [ ] Google Weather API 整合完整
-- [ ] 多語言回應支援（中、英、日）
-- [ ] 智能查詢路由
+**🔄 Phase 2 實現中**：
+- [x] Gemini AI 查詢解析（完成，準確率待測）
+- [x] 多語言回應支援（中、英、日）
+- [x] 智能查詢路由
+- [x] 意圖分類與位置提取
+- [ ] Google Weather API 整合（待實現）
+
+**📋 Phase 3+ 計劃中**：
+- [ ] 進階快取策略
+- [ ] 批次查詢支援
+- [ ] 效能監控與分析
 
 ### 14.2 Phase 1 非功能需求驗收
 
