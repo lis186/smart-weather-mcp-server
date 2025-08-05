@@ -15,7 +15,7 @@ async function testMCPServer() {
   try {
     // Start the MCP server process
     console.log('1. Starting MCP server...');
-    const serverProcess = spawn('node', ['dist/server.js'], {
+    const serverProcess = spawn('node', ['dist/unified-server.js', '--mode=stdio'], {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, NODE_ENV: 'development' }
     });
@@ -23,7 +23,7 @@ async function testMCPServer() {
     // Create MCP client
     const transport = new StdioClientTransport({
       command: 'node',
-      args: ['dist/server.js'],
+      args: ['dist/unified-server.js', '--mode=stdio'],
       env: { NODE_ENV: 'development' }
     });
 
