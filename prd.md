@@ -191,13 +191,13 @@ graph TD
 ```mermaid
 sequenceDiagram
     participant Client as MCP Client
-    participant Tool as get_weather Tool
+    participant Tool as search_weather Tool
     participant Parser as Query Parser
     participant Gemini as Gemini AI
     participant Router as Query Router
     participant API as Google Weather API
     
-    Client->>Tool: get_weather(query, context)
+    Client->>Tool: search_weather(query, context)
     Tool->>Parser: parseQuery(query, context)
     
     Parser->>Gemini: 解析自然語言查詢
@@ -433,10 +433,11 @@ graph TB
     end
     
     subgraph "Smart Weather MCP Server"
-        B[get_current_weather]
-        C[search_location]
-        D[Query Parser with Gemini]
-        E[API Client Layer]
+        B[search_weather]
+        C[find_location]
+        D[get_weather_advice]
+        E[Query Parser with Gemini]
+        F[API Client Layer]
     end
     
     subgraph "Google APIs"
@@ -447,12 +448,14 @@ graph TB
     
     A --> B
     A --> C
-    B --> D
-    C --> D
-    D --> H
+    A --> D
+    B --> E
+    C --> E
     D --> E
+    E --> H
     E --> F
-    E --> G
+    F --> G
+    F --> G
 ```
 
 ### 設計優勢
@@ -864,13 +867,12 @@ graph TB
 ### 功能需求
 
 1. **工具可用性** = 100%
-   - `get_current_weather` - 當前天氣查詢工具正常運作
-   - `search_location` - 地點搜尋工具正常運作
-   - `get_weather_forecast` - 每日預報工具正常運作
-   - `get_hourly_weather` - 每小時預報工具正常運作
-   - `get_weather_history` - 歷史天氣工具正常運作
+   - `search_weather` - 智能天氣查詢工具正常運作（整合所有天氣類型：當前、預報、歷史）
+   - `find_location` - 地點發現與確認工具正常運作
+   - `get_weather_advice` - 個人化天氣建議工具正常運作
    - 所有工具參數驗證正確執行
    - 統一的錯誤處理適當回應
+   - 符合 Shopify Storefront MCP 設計哲學：3 個用戶意圖導向工具
 
 2. **API 整合完整性**
    - [Current Conditions API](https://developers.google.com/maps/documentation/weather/current-conditions) 正確整合

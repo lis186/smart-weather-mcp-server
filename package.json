@@ -18,10 +18,13 @@
     "test:integration": "jest --testPathPattern=tests/integration",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:verbose": "JEST_VERBOSE=true jest --verbose"
+    "test:verbose": "JEST_VERBOSE=true jest --verbose",
+    "demo:parser": "tsx examples/gemini-parser-demo.ts",
+    "demo:phase2": "tsx examples/phase2-demo.ts"
   },
   "dependencies": {
     "@google-cloud/secret-manager": "^6.1.0",
+    "@google-cloud/vertexai": "^1.10.0",
     "@modelcontextprotocol/sdk": "^1.17.1",
     "axios": "^1.6.0",
     "dotenv": "^16.3.1",
