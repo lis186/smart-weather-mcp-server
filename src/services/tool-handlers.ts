@@ -302,9 +302,24 @@ export class ToolHandlerService {
         }
       );
 
-      // RoutingResult always has parsedQuery and selectedAPI
-      const { selectedAPI, parsedQuery, routingDecision } = routingResult;
-      const apiConfidence = routingDecision.confidence;
+      // Check if routing was successful
+      if (!routingResult.success || !routingResult.decision || !routingResult.parsedQuery) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `⚠️ **Weather Search Error**\n\n` +
+                   `**Query:** "${query.query}"\n` +
+                   `**Error:** ${routingResult.error?.message || 'Routing failed'}\n` +
+                   `**Suggestions:** ${routingResult.error?.suggestions?.join(', ') || 'Try being more specific'}\n\n` +
+                   `*Phase 2 error handling provides helpful guidance.*`
+            },
+          ],
+        };
+      }
+
+      const { decision, parsedQuery } = routingResult;
+      const apiConfidence = decision.confidence;
       
       // Use parsing confidence from parsed query
       const parsingConfidence = parsedQuery.confidence || apiConfidence;
@@ -333,9 +348,9 @@ export class ToolHandlerService {
                  `- Language: ${parsedQuery.language || 'en'}\n` +
                  `- Confidence: ${Math.round(parsingConfidence * 100)}%\n\n` +
                  `**Routing Decision:**\n` +
-                 `- Selected API: ${selectedAPI}\n` +
+                 `- Selected API: ${decision.selectedAPI.name}\n` +
                  `- API Confidence: ${Math.round(apiConfidence * 100)}%\n` +
-                 `- Reasoning: ${routingDecision.reasoning}\n\n` +
+                 `- Reasoning: ${decision.reasoning}\n\n` +
                  `**Weather Metrics:** ${parsedQuery.metrics?.join(', ') || 'temperature, conditions'}${aiStatusMessage}\n\n` +
                  `*Note: This shows Phase 2 intelligent parsing and routing. Weather APIs will be connected in Phase 3.*`
           },
@@ -448,8 +463,12 @@ export class ToolHandlerService {
         }
       );
 
-      const { parsedQuery, routingDecision } = routingResult;
-      const confidence = routingDecision.confidence;
+      if (!routingResult.success || !routingResult.decision || !routingResult.parsedQuery) {
+        return this.fallbackResponse('get_weather_advice', query, routingResult.error?.message || 'Routing failed');
+      }
+
+      const { parsedQuery, decision } = routingResult;
+      const confidence = decision.confidence;
       
       return {
         content: [

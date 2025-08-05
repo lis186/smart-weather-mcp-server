@@ -110,49 +110,61 @@ export interface RoutingContext {
 }
 
 /**
+ * API selection and configuration details
+ */
+export interface RoutingDecision {
+  /** Selected API with detailed information */
+  selectedAPI: {
+    id: string;
+    name: string;
+    endpoint: string;
+    category: string;
+    supportedIntents: string[];
+    requiredParams: string[];
+    optionalParams: string[];
+  };
+  
+  /** Selection confidence score (0-1) */
+  confidence: number;
+  
+  /** API-specific parameters for the request */
+  apiParameters: Record<string, unknown>;
+  
+  /** Fallback APIs if primary fails */
+  fallbacks: string[];
+  
+  /** Human-readable reasoning for selection */
+  reasoning: string;
+  
+  /** Estimated response time in milliseconds */
+  estimatedResponseTime: number;
+}
+
+/**
  * Result of query routing with selected API and parameters
  */
 export interface RoutingResult {
-  /** Selected API endpoint */
-  selectedAPI: string;
+  /** Success status of the routing operation */
+  success: boolean;
   
-  /** Parsed query information */
-  parsedQuery: ParsedWeatherQuery;
+  /** Routing decision details (present when success is true) */
+  decision?: RoutingDecision;
   
-  /** API-specific parameters */
-  apiParameters: {
-    endpoint: string;
-    method: 'GET' | 'POST';
-    params: Record<string, unknown>;
-    headers?: Record<string, string>;
+  /** Parsed query information (present when success is true) */
+  parsedQuery?: ParsedWeatherQuery;
+  
+  /** Performance and processing metadata */
+  metadata: {
+    parsingConfidence: number;
+    processingTime: number;
+    parsingSource: 'rules_only' | 'ai_only' | 'rules_with_ai_fallback' | 'rules_fallback';
   };
   
-  /** Fallback APIs if primary fails */
-  fallbackAPIs: string[];
-  
-  /** Routing decision metadata */
-  routingDecision: {
-    confidence: number;
-    reasoning: string;
-    alternativeOptions: Array<{
-      api: string;
-      score: number;
-      reason: string;
-    }>;
-  };
-  
-  /** Caching information */
-  cacheInfo?: {
-    key: string;
-    ttl: number;
-    shouldCache: boolean;
-  };
-  
-  /** Performance metrics */
-  performance: {
-    routingTime: number;
-    parsingTime: number;
-    totalTime: number;
+  /** Error information (present when success is false) */
+  error?: {
+    code: string;
+    message: string;
+    suggestions?: string[];
   };
 }
 

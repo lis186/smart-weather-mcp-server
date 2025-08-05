@@ -7,6 +7,7 @@ import {
   ParsedWeatherQuery,
   RoutingContext,
   RoutingResult,
+  RoutingDecision,
   QueryRouterConfig,
   WeatherIntent,
   WeatherMetric
@@ -56,27 +57,35 @@ export class QueryRouter {
       };
 
       // Select API using the apiSelector
-      const decision = await this.apiSelector.selectAPI(parsedQuery, routingContext);
+      const apiSelection = this.apiSelector.selectAPI(parsedQuery, routingContext);
+      
+      // Create routing decision
+      const decision: RoutingDecision = {
+        selectedAPI: {
+          id: apiSelection.selectedAPI,
+          name: `${apiSelection.selectedAPI.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} API`,
+          endpoint: `/maps/api/weather/${apiSelection.selectedAPI.split('_').pop()}`,
+          category: 'weather',
+          supportedIntents: this.getSupportedIntents(apiSelection.selectedAPI),
+          requiredParams: ['location'],
+          optionalParams: ['units', 'language']
+        },
+        confidence: apiSelection.confidence || 0.5,
+        apiParameters: { location: parsedQuery.location.name, units: 'metric' },
+        fallbacks: apiSelection.alternatives.map(alt => alt.api),
+        reasoning: apiSelection.reasoning || 'Default routing decision',
+        estimatedResponseTime: 300
+      };
       
       // Create successful result
       const result: RoutingResult = {
-        selectedAPI: decision.selectedAPI,
+        success: true,
+        decision,
         parsedQuery,
-        apiParameters: {
-          endpoint: decision.selectedAPI,
-          method: 'GET',
-          params: {}
-        },
-        fallbackAPIs: [],
-        routingDecision: {
-          confidence: decision.confidence || 0.5,
-          reasoning: decision.reasoning || 'Default routing decision',
-          alternativeOptions: []
-        },
-        performance: {
-          routingTime: Date.now() - startTime,
-          parsingTime: 0,
-          totalTime: Date.now() - startTime
+        metadata: {
+          parsingConfidence: parsedQuery.confidence,
+          processingTime: Date.now() - startTime,
+          parsingSource: parsedQuery.parsingSource
         }
       };
 
@@ -90,42 +99,35 @@ export class QueryRouter {
 
       // Return error result
       return {
-        selectedAPI: 'error',
-        parsedQuery: {
-          originalQuery: query.query,
-          location: {
-            name: null,
-            confidence: 0.0
-          },
-          intent: {
-            primary: 'unknown',
-            confidence: 0.0
-          },
-          timeScope: { type: 'current' },
-          metrics: ['temperature'],
-          confidence: 0,
-          language: 'en',
-          parsingSource: 'rules_fallback',
-          context: query.context
+        success: false,
+        metadata: {
+          parsingConfidence: 0,
+          processingTime: Date.now() - startTime,
+          parsingSource: 'rules_fallback'
         },
-        apiParameters: {
-          endpoint: 'error',
-          method: 'GET',
-          params: {}
-        },
-        fallbackAPIs: [],
-        routingDecision: {
-          confidence: 0,
-          reasoning: `Error: ${error instanceof Error ? error.message : String(error)}`,
-          alternativeOptions: []
-        },
-        performance: {
-          routingTime: Date.now() - startTime,
-          parsingTime: 0,
-          totalTime: Date.now() - startTime
+        error: {
+          code: 'ROUTING_FAILED',
+          message: error instanceof Error ? error.message : String(error),
+          suggestions: ['Try specifying a clear location and weather information type.']
         }
       };
     }
+  }
+
+  /**
+   * Get supported intents for an API
+   */
+  private getSupportedIntents(apiId: string): string[] {
+    const intentMap: Record<string, string[]> = {
+      'google_current_conditions': ['current_conditions', 'air_quality'],
+      'google_daily_forecast': ['forecast', 'weather_advice'],
+      'google_hourly_forecast': ['forecast', 'weather_advice'],
+      'google_hourly_history': ['historical'],
+      'google_geocoding': ['location_search'],
+      'google_places': ['location_search']
+    };
+    
+    return intentMap[apiId] || ['unknown'];
   }
 
   /**
