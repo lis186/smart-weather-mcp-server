@@ -47,8 +47,8 @@ export class QueryRouter {
     const startTime = Date.now();
     
     try {
-      // Parse the query into structured format
-      const parsedQuery = this.parseQuery(query);
+      // Parse the query into structured format (hybrid rule-based + AI fallback)
+      const parsedQuery = await this.parseQuery(query);
       
       // Create routing context with defaults
       const routingContext: RoutingContext = context || {
@@ -131,46 +131,128 @@ export class QueryRouter {
   }
 
   /**
-   * Simple query parsing that works with current interfaces
+   * Hybrid query parsing with rule-based first, AI fallback for complex cases
    */
-  private parseQuery(query: WeatherQuery): ParsedWeatherQuery {
+  private async parseQuery(query: WeatherQuery): Promise<ParsedWeatherQuery> {
+    const startTime = Date.now();
+    
+    // Step 1: Rule-based parsing for common patterns
+    const ruleResult = this.parseWithRules(query);
+    
+    // Step 2: Dynamic confidence threshold based on AI availability
+    const aiThreshold = this.geminiParser ? this.config.aiThreshold : this.config.minConfidenceThreshold;
+    
+    // Step 3: Check if AI fallback is needed
+    if (ruleResult.confidence < aiThreshold && this.geminiParser) {
+      try {
+        logger.info('Using AI fallback for complex query', { 
+          query: query.query, 
+          ruleConfidence: ruleResult.confidence,
+          threshold: aiThreshold 
+        });
+        
+        const aiResult = await this.geminiParser.parseQuery({ query: query.query });
+        
+        if (aiResult.success && aiResult.result) {
+          // Merge AI result with rule-based structure
+          const mergedResult = this.mergeParsingResults(ruleResult, aiResult.result);
+          mergedResult.parsingSource = 'rules_with_ai_fallback';
+          
+          logger.info('AI fallback successful', { 
+            originalConfidence: ruleResult.confidence,
+            aiConfidence: mergedResult.confidence,
+            processingTime: Date.now() - startTime 
+          });
+          
+          return mergedResult;
+        }
+      } catch (error) {
+        logger.warn('AI fallback failed, using rule-based result', { 
+          error: error instanceof Error ? error.message : String(error) 
+        });
+      }
+    }
+    
+    // Step 4: Return rule-based result (either sufficient confidence or AI unavailable/failed)
+    const parsingSource = this.geminiParser ? 
+      (ruleResult.confidence >= aiThreshold ? 'rules_only' : 'rules_fallback') :
+      'rules_fallback';
+    
+    return {
+      ...ruleResult,
+      parsingSource
+    };
+  }
+
+  /**
+   * Rule-based parsing for common patterns (optimized for speed)
+   */
+  private parseWithRules(query: WeatherQuery): ParsedWeatherQuery {
     const text = query.query.toLowerCase();
     const originalText = query.query;
 
-    // Simple location extraction
-    const locationMatch = originalText.match(/in\s+([^,]+)/i) || 
-                         originalText.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/);
-    const location = locationMatch ? locationMatch[1].trim() : null;
+    // Enhanced location extraction with more patterns
+    const locationPatterns = [
+      /(?:in|at|for)\s+([^,\n]+?)(?:\s+(?:today|tomorrow|weather|forecast)|$)/i,
+      /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:weather|forecast|today|tomorrow)/i,
+      /^([^,\n]+?)\s+(?:weather|forecast|今天|明天|天氣)/i,
+      /([^,\n]+?)\s*[,，]\s*(?:weather|forecast|天氣)/i
+    ];
     
-    // Simple intent detection
+    let location: string | null = null;
+    for (const pattern of locationPatterns) {
+      const match = originalText.match(pattern);
+      if (match && match[1]) {
+        location = match[1].trim();
+        break;
+      }
+    }
+    
+    // Enhanced intent detection with more patterns
     let intent: WeatherIntent = 'current_conditions';
-    if (text.includes('forecast') || text.includes('tomorrow') || text.includes('明天')) {
+    let intentConfidence = 0.7;
+    
+    if (text.includes('forecast') || text.includes('tomorrow') || text.includes('明天') || 
+        text.includes('next') || text.includes('future') || text.includes('預報')) {
       intent = 'forecast';
-    } else if (text.includes('surf') || text.includes('wave') || text.includes('衝浪')) {
+      intentConfidence = 0.9;
+    } else if (text.includes('surf') || text.includes('wave') || text.includes('衝浪') || 
+               text.includes('marine') || text.includes('ocean') || text.includes('sea')) {
       intent = 'marine_conditions';
+      intentConfidence = 0.9;
+    } else if (text.includes('air quality') || text.includes('pollution') || text.includes('空氣品質')) {
+      intent = 'air_quality';
+      intentConfidence = 0.9;
+    } else if (text.includes('advice') || text.includes('recommend') || text.includes('建議')) {
+      intent = 'weather_advice';
+      intentConfidence = 0.8;
     }
     
-    // Simple metrics extraction
+    // Enhanced metrics extraction
     const metrics: WeatherMetric[] = ['temperature'];
-    if (text.includes('wind') || text.includes('風')) {
-      metrics.push('wind_speed');
-    }
-    if (text.includes('humidity') || text.includes('濕度')) {
-      metrics.push('humidity');
-    }
+    if (text.includes('wind') || text.includes('風')) metrics.push('wind_speed');
+    if (text.includes('humidity') || text.includes('濕度')) metrics.push('humidity');
+    if (text.includes('rain') || text.includes('precipitation') || text.includes('雨')) metrics.push('precipitation');
+    if (text.includes('pressure') || text.includes('氣壓')) metrics.push('pressure');
     
-    // Time scope
+    // Time scope detection
     const timeScope = intent === 'forecast' 
       ? { type: 'forecast' as const, duration: '7days' }
       : { type: 'current' as const };
     
-    // Language detection
-    const language: 'en' | 'zh-TW' | 'ja' = /[\u4e00-\u9fff]/.test(originalText) ? 'zh-TW' : 'en';
+    // Language detection (enhanced for Japanese)
+    let language: 'en' | 'zh-TW' | 'ja' = 'en';
+    if (/[\u4e00-\u9fff]/.test(originalText)) {
+      language = 'zh-TW';
+    } else if (/[\u3040-\u309f\u30a0-\u30ff]/.test(originalText)) {
+      language = 'ja';
+    }
     
-    // Basic confidence calculation
-    let confidence = 0.4;
-    if (location) confidence += 0.3;
-    if (intent === 'forecast' || intent === 'marine_conditions') confidence += 0.2;
+    // Improved confidence calculation
+    let confidence = 0.4; // Base confidence
+    if (location) confidence += 0.3; // Location found
+    if (intentConfidence > 0.8) confidence += 0.2; // High intent confidence
+    if (metrics.length > 1) confidence += 0.1; // Multiple metrics
     
     return {
       originalQuery: query.query,
@@ -180,14 +262,44 @@ export class QueryRouter {
       },
       intent: {
         primary: intent,
-        confidence: intent === 'forecast' || intent === 'marine_conditions' ? 0.9 : 0.7
+        confidence: intentConfidence
       },
       timeScope,
       metrics,
       confidence,
       language,
-      parsingSource: 'rules_only',
+      parsingSource: 'rules_only', // Will be updated by caller
       context: query.context
+    };
+  }
+
+  /**
+   * Merge rule-based result with AI result for best accuracy
+   */
+  private mergeParsingResults(ruleResult: ParsedWeatherQuery, aiResult: any): ParsedWeatherQuery {
+    // Use AI result for location if it has higher confidence
+    const location = (aiResult.location?.confidence || 0) > ruleResult.location.confidence 
+      ? { name: aiResult.location?.name || null, confidence: aiResult.location?.confidence || 0 }
+      : ruleResult.location;
+    
+    // Use AI result for intent if it has higher confidence  
+    const intent = (aiResult.intent?.confidence || 0) > ruleResult.intent.confidence
+      ? { primary: aiResult.intent?.primary || ruleResult.intent.primary, confidence: aiResult.intent?.confidence || 0 }
+      : ruleResult.intent;
+    
+    // Merge metrics from both sources
+    const metrics = Array.from(new Set([...ruleResult.metrics, ...(aiResult.metrics || [])]));
+    
+    // Use higher overall confidence
+    const confidence = Math.max(ruleResult.confidence, aiResult.confidence || 0);
+    
+    return {
+      ...ruleResult,
+      location,
+      intent,
+      metrics,
+      confidence,
+      language: aiResult.userPreferences?.language || ruleResult.language
     };
   }
 }
