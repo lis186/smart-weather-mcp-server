@@ -59,7 +59,7 @@ describe('ToolHandlerService', () => {
         expect(result).toHaveProperty('content');
         expect(result.content).toBeInstanceOf(Array);
         expect(result.content[0]).toHaveProperty('type', 'text');
-        expect(result.content[0].text).toContain('Weather search placeholder');
+        expect(result.content[0].text).toContain('Phase 2 Weather Search Results');
         expect(result.content[0].text).toContain(query.query);
       });
 

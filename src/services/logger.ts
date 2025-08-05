@@ -81,12 +81,9 @@ export class Logger {
 
     const formattedLog = this.formatLogEntry(entry);
 
-    // Output to appropriate stream
-    if (level === LogLevel.ERROR || level === LogLevel.WARN) {
-      console.error(formattedLog);
-    } else {
-      console.log(formattedLog);
-    }
+    // STDIO FIX: Always output to stderr to avoid interfering with MCP protocol
+    // In STDIO mode, stdout is reserved for MCP JSON-RPC communication
+    console.error(formattedLog);
   }
 
   error(message: string, context?: Record<string, unknown>, error?: Error): void {
@@ -139,11 +136,12 @@ export class Logger {
     });
   }
 
-  toolCall(toolName: string, query: string, context?: Record<string, unknown>): void {
+  toolCall(toolName: string, query: string, context?: string | Record<string, unknown>): void {
     this.info('Tool call executed', {
       toolName,
       query: query.substring(0, 100) + (query.length > 100 ? '...' : ''),
-      hasContext: !!context
+      hasContext: !!context,
+      contextType: typeof context
     });
   }
 }
