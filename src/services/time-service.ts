@@ -199,11 +199,25 @@ export class TimeService {
 
   /**
    * Convert time between timezones
+   * @throws {Error} Not implemented - timezone conversion requires proper implementation
+   * @deprecated This method is incomplete and will cause timezone-related bugs
+   * TODO Phase 4: Implement using Intl.DateTimeFormat or date-fns library
+   * 
+   * Recommended implementation:
+   * ```typescript
+   * const formatter = new Intl.DateTimeFormat('en-US', {
+   *   timeZone: toTimezone,
+   *   year: 'numeric', month: '2-digit', day: '2-digit',
+   *   hour: '2-digit', minute: '2-digit', second: '2-digit'
+   * });
+   * return new Date(formatter.format(date));
+   * ```
    */
   convertTimezone(date: Date, fromTimezone: string, toTimezone: string): Date {
-    // In a real implementation, this would use proper timezone conversion
-    // For now, return the same date (simplified)
-    return date;
+    throw new Error(
+      `Timezone conversion not implemented. Cannot convert from ${fromTimezone} to ${toTimezone}. ` +
+      'This method requires proper timezone library implementation.'
+    );
   }
 }
 

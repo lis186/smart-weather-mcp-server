@@ -71,6 +71,21 @@ export class WeatherService {
   // Cache configuration constants
   private static readonly MAX_CACHE_SIZE = 10000;
   private static readonly CACHE_CLEANUP_THRESHOLD = 8000;
+  
+  // Time constants (in milliseconds)
+  private static readonly CACHE_CLEANUP_INTERVAL = 60000; // 1 minute
+  private static readonly DEFAULT_CACHE_TTL = 300000; // 5 minutes
+  private static readonly RATE_LIMIT_WINDOW = 60000; // 1 minute
+  
+  // API limits
+  private static readonly DEFAULT_MAX_REQUESTS_PER_MINUTE = 60;
+  private static readonly DEFAULT_HOURLY_FORECAST_HOURS = 24;
+  
+  // Mock data constants
+  private static readonly MOCK_BASE_TEMPERATURE = 20;
+  private static readonly MOCK_TEMP_VARIANCE = 20;
+  private static readonly MOCK_HUMIDITY_BASE = 60;
+  private static readonly MOCK_HUMIDITY_VARIANCE = 30;
 
   constructor(config: WeatherServiceConfig) {
     this.config = config;
@@ -78,7 +93,7 @@ export class WeatherService {
     
     // Setup cache cleanup interval
     if (config.cache?.enabled) {
-      setInterval(() => this.cleanupCache(), 60000); // Every minute
+      setInterval(() => this.cleanupCache(), WeatherService.CACHE_CLEANUP_INTERVAL);
     }
 
     logger.info('Weather service initialized', {
@@ -233,6 +248,19 @@ export class WeatherService {
    * Get current weather for a location
    */
   async getCurrentWeather(location: Location, options?: WeatherQueryRequest['options']): Promise<WeatherAPIResponse<CurrentWeatherData>> {
+    // Validate request parameters
+    const validationError = this.validateLocation(location);
+    if (validationError) {
+      return {
+        success: false,
+        error: {
+          code: 'INVALID_LOCATION',
+          message: validationError,
+          retryable: false
+        }
+      };
+    }
+    
     if (!this.weatherClient) {
       return this.createMockCurrentWeather(location, options);
     }
@@ -422,20 +450,46 @@ export class WeatherService {
   }
 
   /**
+   * Validate location parameters
+   */
+  private validateLocation(location: Location): string | null {
+    if (!location) {
+      return 'Location is required';
+    }
+    
+    if (typeof location.latitude !== 'number' || typeof location.longitude !== 'number') {
+      return 'Location must have valid latitude and longitude numbers';
+    }
+    
+    if (location.latitude < -90 || location.latitude > 90) {
+      return 'Latitude must be between -90 and 90 degrees';
+    }
+    
+    if (location.longitude < -180 || location.longitude > 180) {
+      return 'Longitude must be between -180 and 180 degrees';
+    }
+    
+    if (location.name && typeof location.name !== 'string') {
+      return 'Location name must be a string';
+    }
+    
+    return null; // Valid location
+  }
+
+  /**
    * Rate limiting check
    */
   private checkRateLimit(): boolean {
     const now = Date.now();
-    const timeWindow = 60000; // 1 minute
 
     // Reset counter if window expired
-    if (now - this.lastResetTime > timeWindow) {
+    if (now - this.lastResetTime > WeatherService.RATE_LIMIT_WINDOW) {
       this.requestCount = 0;
       this.lastResetTime = now;
     }
 
     // Check limit
-    const limit = this.config.apiLimits?.maxRequestsPerMinute || 60;
+    const limit = this.config.apiLimits?.maxRequestsPerMinute || WeatherService.DEFAULT_MAX_REQUESTS_PER_MINUTE;
     if (this.requestCount >= limit) {
       return false;
     }
@@ -461,44 +515,66 @@ export class WeatherService {
   }
 
   private getFromCache<T>(key: string): T | null {
-    const entry = this.cache.get(key);
-    if (!entry) return null;
-    
-    if (Date.now() > entry.timestamp + entry.ttl) {
+    try {
+      const entry = this.cache.get(key);
+      if (!entry) return null;
+      
+      if (Date.now() > entry.timestamp + entry.ttl) {
+        this.cache.delete(key);
+        return null;
+      }
+      
+      return entry.data;
+    } catch (error) {
+      logger.error('Cache retrieval error', { key, error: (error as Error).message });
+      // Remove corrupted entry
       this.cache.delete(key);
       return null;
     }
-    
-    return entry.data;
   }
 
   private setCache<T>(key: string, data: T, ttl: number): void {
-    // Check cache size bounds to prevent memory leaks
-    if (this.cache.size >= WeatherService.MAX_CACHE_SIZE) {
-      this.cleanupCache();
+    try {
+      // Validate TTL
+      if (ttl <= 0) {
+        logger.warn('Invalid cache TTL', { key, ttl });
+        return;
+      }
       
-      // If still at max after cleanup, remove oldest entries
+      // Check cache size bounds to prevent memory leaks
       if (this.cache.size >= WeatherService.MAX_CACHE_SIZE) {
-        const entriesToRemove = this.cache.size - WeatherService.CACHE_CLEANUP_THRESHOLD;
-        const entries = Array.from(this.cache.entries())
-          .sort(([,a], [,b]) => a.timestamp - b.timestamp);
+        this.cleanupCache();
         
-        for (let i = 0; i < entriesToRemove; i++) {
-          this.cache.delete(entries[i][0]);
+        // If still at max after cleanup, remove oldest entries
+        if (this.cache.size >= WeatherService.MAX_CACHE_SIZE) {
+          const entriesToRemove = this.cache.size - WeatherService.CACHE_CLEANUP_THRESHOLD;
+          const entries = Array.from(this.cache.entries())
+            .sort(([,a], [,b]) => a.timestamp - b.timestamp);
+          
+          for (let i = 0; i < entriesToRemove && i < entries.length; i++) {
+            this.cache.delete(entries[i][0]);
+          }
+          
+          logger.info('Cache size reduced', { 
+            removed: Math.min(entriesToRemove, entries.length),
+            currentSize: this.cache.size 
+          });
         }
       }
+      
+      this.cache.set(key, {
+        data,
+        timestamp: Date.now(),
+        ttl
+      });
+    } catch (error) {
+      logger.error('Cache storage error', { key, error: (error as Error).message });
     }
-    
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-      ttl
-    });
   }
 
   private getCacheTTL(request: WeatherQueryRequest): number {
     const config = this.config.cache?.config;
-    if (!config) return 300000; // 5 minutes default
+    if (!config) return WeatherService.DEFAULT_CACHE_TTL;
     
     if (request.options?.includeHourly) {
       return config.forecastTTL;
@@ -538,9 +614,10 @@ export class WeatherService {
   }
 
   /**
-   * Mock response methods (fallback when APIs not available)
-   * TODO: Remove mock implementations when real weather APIs are integrated
-   * These provide consistent test data during development phase
+   * TEMPORARY: Mock response methods (fallback when APIs not available)
+   * TODO Phase 4: Remove mock implementations when real weather APIs are integrated
+   * @deprecated These provide consistent test data during development phase only
+   * These methods will be removed once actual weather API integration is complete
    */
   private createMockCurrentWeather(location: Location, options?: WeatherQueryRequest['options']): WeatherAPIResponse<CurrentWeatherData> {
     const temp = 20 + (Math.random() - 0.5) * 20;

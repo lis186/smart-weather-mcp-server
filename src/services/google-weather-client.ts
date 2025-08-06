@@ -364,8 +364,9 @@ export class GoogleWeatherClient extends GoogleMapsClient {
   }
 
   /**
-   * Create mock weather response (temporary implementation)
-   * TODO: Replace with actual Google Weather API when publicly available
+   * TEMPORARY: Mock weather response for development
+   * TODO Phase 4: Replace with actual Google Weather API integration
+   * @deprecated Remove when real API is available
    * Current implementation provides realistic mock data for development/testing
    */
   private createMockWeatherResponse(endpoint: string, params: any): any {
