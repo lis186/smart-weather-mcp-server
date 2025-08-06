@@ -22,7 +22,7 @@ export class GeminiClient {
     this.config = {
       projectId: config.projectId,
       region: config.region || 'us-central1',
-      model: config.model || 'gemini-2.5-flash-002',
+      model: config.model || 'gemini-2.5-flash-lite',
       temperature: config.temperature ?? 0.1,
       maxTokens: config.maxTokens || 1024,
       timeout: config.timeout || 5000

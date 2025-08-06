@@ -129,7 +129,12 @@ describe('QueryRouter - Hybrid Parsing Architecture', () => {
 
       expect(result.success).toBe(true);
       expect(result.parsedQuery?.parsingSource).toBe('rules_with_ai_fallback');
-      expect(mockGeminiParser.parseQuery).toHaveBeenCalledWith({ query: query.query });
+      expect(mockGeminiParser.parseQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          query: query.query,
+          context: expect.stringContaining("Current time:")
+        })
+      );
       expect(result.parsedQuery?.location.name).toBe('AI_DETECTED_LOCATION');
     });
 

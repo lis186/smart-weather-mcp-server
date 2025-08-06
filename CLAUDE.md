@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Smart Weather MCP Server designed for Google Cloud Run deployment. The project follows the Shopify Storefront MCP design philosophy with user-intent-driven tools, using TypeScript and Node.js to provide intelligent weather querying capabilities through AI-powered natural language understanding.
 
-🎯 **Current Status**: **Phase 2.1 Parsing Optimization COMPLETED** ✅ - Hybrid rule-based parsing with AI fallback successfully implemented. All complex Chinese queries now working with dynamic confidence thresholds and graceful degradation.
+🎯 **Current Status**: **Phase 3.1 API Client Implementation COMPLETED** ✅ - Weather API client architecture implemented with Google Maps/Weather integration. Context format fixes, time handling, and Gemini AI optimization completed. System ready for full weather data integration.
 
 ## Essential Commands
 
@@ -58,6 +58,7 @@ gcloud run deploy smart-weather-mcp --image gcr.io/PROJECT_ID/smart-weather-mcp 
 ### Current Implementation
 
 **Phase 1 Production-Ready Features** (✅ Completed):
+
 - ✅ **Enterprise Dual Transport**: STDIO (Claude Desktop) + HTTP/SSE (n8n, web clients)
 - ✅ **Unified Server Architecture**: Single codebase, command-line mode switching
 - ✅ **Production MCP Tools**: 3 tools, unified parameters, runtime validation
@@ -72,6 +73,7 @@ gcloud run deploy smart-weather-mcp --image gcr.io/PROJECT_ID/smart-weather-mcp 
 - ✅ **Code Quality Assurance**: Multiple code reviews passed, A- quality rating
 
 **Phase 2 AI Intelligence Features** (✅ Completed):
+
 - ✅ **Gemini AI Parser**: Natural language understanding, intent classification
 - ✅ **Query Router**: Multi-criteria API selection, fallback strategies
 - ✅ **Multilingual Support**: Chinese, English, Japanese query parsing
@@ -157,17 +159,20 @@ gcloud run deploy smart-weather-mcp --image gcr.io/PROJECT_ID/smart-weather-mcp 
 
 ## Current Project Status
 
-✅ **Phase 2.1 Parsing Optimization COMPLETED** - Hybrid rule-based parsing with AI fallback successfully implemented.
+✅ **Phase 3.1 API Client Implementation COMPLETED** - Weather API client architecture implemented with context format fixes and time handling.
 
-## ✅ Phase 2.1 Achievements: Parsing Architecture Optimization
+## ✅ Phase 3.1 Achievements: API Client Implementation & Context Optimization
 
-### **Problem Solved**
-- ✅ Hybrid rule-based + AI fallback architecture implemented
-- ✅ All complex Chinese queries now working successfully
-- ✅ Dynamic confidence thresholds for optimal performance
-- ✅ Graceful degradation when Gemini AI unavailable
+### **Problems Solved**
+
+- ✅ **Context Format Fixed**: Removed strict key-value validation, now accepts natural language context
+- ✅ **Time Integration**: Added TimeService for relative time expressions (今天、明天、昨天)
+- ✅ **Gemini AI Optimization**: Corrected model name to `gemini-2.5-flash-lite`, improved prompts
+- ✅ **Weather API Architecture**: Implemented GoogleMapsClient, GoogleWeatherClient, LocationService, WeatherService
+- ✅ **Hybrid Parsing Enhanced**: Rule-based + AI fallback with time context integration
 
 ### **Implementation Completed**
+
 ```typescript
 // COMPLETED: Hybrid Rule-Based + AI Fallback in query-router.ts
 async parseQuery(query: WeatherQuery): Promise<ParsedWeatherQuery> {
@@ -188,6 +193,7 @@ async parseQuery(query: WeatherQuery): Promise<ParsedWeatherQuery> {
 ```
 
 ### **All Test Cases Now Passing**
+
 - ✅ "沖繩明天天氣預報 衝浪條件 海浪高度 風速" → Success (35% confidence, weather_advice)
 - ✅ "日本沖繩明天天氣 海況 風浪預報" → Success (location: 日本)
 - ✅ "台灣明天空氣品質預報 花粉濃度 過敏指數" → Success (location: 台灣)
@@ -195,16 +201,17 @@ async parseQuery(query: WeatherQuery): Promise<ParsedWeatherQuery> {
 - ✅ "農業種植天氣預報 下週降雨量 風速" → Success (location: Not specified)
 
 ### **Production-Ready Features**
+
 - ✅ **Dynamic Thresholds**: 0.5 with AI, 0.3 without AI for graceful degradation
 - ✅ **Enhanced Location Extraction**: Fixed compound patterns, Chinese character handling
-- ✅ **Clear AI Status**: Users see when Gemini available/unavailable 
+- ✅ **Clear AI Status**: Users see when Gemini available/unavailable
 - ✅ **Performance**: 1ms simple queries, 3-7ms complex queries, 500ms AI fallback
 - ✅ **Reliability**: 100% success rate for previously failing queries
 
 ### 📋 執行計劃與進度追蹤
 
-- **主要執行計劃**: `plan.md` - 包含 5 階段詳細實作計劃，Phase 2 進行中
-- **學習日誌**: `LEARNING_LOG.md` - 記錄技術決策和實作經驗  
+- **主要執行計劃**: `docs/development/plan.md` - 詳細實作計劃
+- **學習日誌**: `docs/development/LEARNING_LOG.md` - 記錄技術決策和實作經驗  
 - **當前階段**: ✅ **Phase 2.1 完成** - Hybrid 解析架構實現，所有複雜中文查詢成功
 - **代碼品質**: 通過嚴格審查，解決所有關鍵問題，企業級標準
 - **測試覆蓋**: Jest + TypeScript 完整測試套件，已更新並整理
@@ -213,6 +220,7 @@ async parseQuery(query: WeatherQuery): Promise<ParsedWeatherQuery> {
 ### 🎯 Phase 2 實現狀態確認
 
 **Phase 2.1 已完成功能**:
+
 - ✅ Gemini AI 解析器 - 自然語言理解與意圖分類
 - ✅ 查詢路由器 - 智能 API 選擇與路由決策
 - ✅ 多語言支援 - 中英日文查詢解析
@@ -225,12 +233,14 @@ async parseQuery(query: WeatherQuery): Promise<ParsedWeatherQuery> {
 - ✅ **測試套件整理** - 移除過時測試，整合最新實現
 
 **待完成項目**:
+
 - 🔄 Google Weather API 客戶端實現
 - 🔄 實際天氣數據整合
 
 ### Project Files
 
 #### Core Implementation
+
 - `src/` - **TypeScript source code (Phase 1 完成)**
   - `unified-server.ts` - Main server with transport mode switching
   - `core/mcp-server.ts` - MCP server implementation with 3 tools
@@ -239,6 +249,7 @@ async parseQuery(query: WeatherQuery): Promise<ParsedWeatherQuery> {
   - `types/index.ts` - TypeScript type definitions
 
 #### Documentation
+
 - `README.md` - Comprehensive project documentation with transport modes
 - `spec.md` - Technical specifications (updated with Phase 1 status)
 - `plan.md` - **詳細執行計劃 (Phase 1 已完成)**
@@ -246,6 +257,7 @@ async parseQuery(query: WeatherQuery): Promise<ParsedWeatherQuery> {
 - `TRANSPORT_MODES.md` - **Transport mode switching guide**
 
 #### Configuration
+
 - `package.json` - Dependencies and scripts
 - `tsconfig.json` - TypeScript configuration
 - `Dockerfile` - Container configuration
@@ -257,6 +269,7 @@ async parseQuery(query: WeatherQuery): Promise<ParsedWeatherQuery> {
 **⚠️ 實作時必須參考並持續更新 `plan.md` 中的進度**
 
 `plan.md` 包含：
+
 - 基於 development-principles.mdc 制定的階段性執行計劃
 - 關鍵風險識別和緩解策略
 - 具體的驗收標準和監控指標
@@ -265,6 +278,7 @@ async parseQuery(query: WeatherQuery): Promise<ParsedWeatherQuery> {
 ### Implementation Steps (參考 plan.md 階段規劃)
 
 **✅ 階段 1: 核心基礎建設** (已完成)
+
 1. ✅ 建立專案結構和 TypeScript 配置
 2. ✅ 實現 MCP Server 基礎框架
 3. ✅ 整合 Secret Manager
@@ -272,6 +286,7 @@ async parseQuery(query: WeatherQuery): Promise<ParsedWeatherQuery> {
 5. ✅ Claude Desktop 整合測試 (額外成就)
 
 **✅ 階段 2.1: Hybrid 解析架構** (已完成)  
+
 1. ✅ 實現 Gemini AI 查詢解析
 2. ✅ 建立智能路由器
 3. ✅ 多語言支援實現
@@ -286,6 +301,7 @@ async parseQuery(query: WeatherQuery): Promise<ParsedWeatherQuery> {
 ### Progress Tracking
 
 實作過程中：
+
 1. **更新 plan.md 中的核取方塊** - 標記完成的任務
 2. **記錄學習要點** - 在 plan.md 相應章節記錄遇到的技術難題和解決方案
 3. **調整時間預估** - 根據實際情況更新後續階段預估
@@ -369,6 +385,7 @@ When working on this project, use these specific MCP servers for their designate
 #### 進度追蹤機制
 
 每個里程碑完成後，Claude 必須：
+
 1. 更新 `plan.md` 中對應的進度狀態
 2. 在 `LEARNING_LOG.md` 記錄技術決策和發現
 3. 識別影響後續階段的關鍵學習
@@ -377,6 +394,7 @@ When working on this project, use these specific MCP servers for their designate
 #### 實作優先順序
 
 基於 development-principles.mdc：
+
 1. **快速部署優先** - 每階段都要能獨立部署驗證
 2. **關鍵風險優先** - 優先處理技術可行性驗證
 3. **小批次開發** - 保持功能增量可驗證
@@ -422,20 +440,24 @@ This repository is designed to be a reference implementation of MCP server best 
 ## 📚 Complete Documentation Index
 
 ### Core Documentation
+
 - [📖 README.md](./README.md) - Project overview and quick start guide
 - [📋 spec.md](./docs/architecture/spec.md) - Detailed technical specifications and architecture
 - [🗺️ plan.md](./docs/development/plan.md) - Phase-by-phase development plan with progress tracking
 - [📝 prd.md](./prd.md) - Complete product requirements document
 
 ### Development Guides
+
 - [🔄 TRANSPORT_MODES.md](./docs/development/TRANSPORT_MODES.md) - **Transport mode switching guide (STDIO/HTTP)**
 - [📚 LEARNING_LOG.md](./docs/development/LEARNING_LOG.md) - Technical decisions and development insights
 - [⚙️ CLAUDE.md](./CLAUDE.md) - This file - Claude Code development guidance
 
 ### Setup Guides
+
 - [🖥️ Claude Desktop Setup](./docs/setup/CLAUDE_DESKTOP_SETUP.md) - Claude Desktop integration setup
 
 ### Quick Reference
+
 - [🐳 Dockerfile](./Dockerfile) - Container configuration
 - [📦 package.json](./package.json) - Dependencies and npm scripts
 - [⚙️ tsconfig.json](./tsconfig.json) - TypeScript configuration
