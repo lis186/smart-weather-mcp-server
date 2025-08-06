@@ -210,7 +210,7 @@ export class ToolHandlerService {
         // Limit length and validate content
         contextStr = contextStr.slice(0, 500);
         
-        // Validate context format (should be key-value pairs)
+        // Validate context format (free-form text per MCP design philosophy)
         // Allow Unicode characters for international support (Chinese, Japanese, etc.)
         // Only block obvious injection attempts
         if (contextStr) {
@@ -223,14 +223,9 @@ export class ToolHandlerService {
             );
           }
           
-          // Validate basic key-value structure (loose validation to support Unicode)
-          const keyValuePattern = /^[^:]+:[^,]+(,\s*[^:]+:[^,]+)*$/;
-          if (!keyValuePattern.test(contextStr)) {
-            throw new McpError(
-              ErrorCode.InvalidParams,
-              'Context must be in key-value format. Example: "location: 東京, timeframe: 明天"'
-            );
-          }
+                  // Context is free-form text per MCP design philosophy
+        // No strict format validation required - allow natural language context
+        // Only validate for obvious security issues (already handled above)
         }
         
         sanitizedContext = contextStr || undefined;
@@ -328,19 +323,21 @@ export class ToolHandlerService {
       const parsingSource = parsedQuery.parsingSource || 'unknown';
       let aiStatusMessage = '';
       
-      if (parsingSource === 'rules_only' || parsingSource === 'rules_fallback') {
+      if (parsingSource === 'rules_fallback') {
         aiStatusMessage = '\n⚠️ **AI Parser Status:** Gemini AI not available - using simplified rule-based parsing';
+      } else if (parsingSource === 'rules_only') {
+        aiStatusMessage = '\n✅ **AI Parser Status:** Rule-based parsing (AI available for complex queries)';
       } else if (parsingSource === 'rules_with_ai_fallback') {
         aiStatusMessage = '\n🤖 **AI Parser Status:** Gemini AI enhanced parsing used';
       } else if (parsingSource === 'ai_only') {
-        aiStatusMessage = '\n🤖 **AI Parser Status:** AI-powered parsing';
+        aiStatusMessage = '\n🤖 **AI Parser Status:** Full AI-powered parsing';
       }
       
       return {
         content: [
           {
             type: 'text',
-            text: `🌤️ **Phase 2 Weather Search Results**\n\n` +
+            text: `🌤️ **Phase 3.1 Weather Search Results**\n\n` +
                  `**Query Analysis:**\n` +
                  `- Original: "${query.query}"\n` +
                  `- Location: ${parsedQuery.location.name || 'Not specified'}\n` +

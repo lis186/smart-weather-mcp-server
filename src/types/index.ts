@@ -10,6 +10,7 @@ export interface WeatherResponse {
     code: string;
     message: string;
     details?: string;
+    retryable?: boolean;
   };
 }
 
@@ -50,3 +51,32 @@ export interface MCPCallToolRequest {
     arguments: unknown;
   };
 }
+
+// Re-export weather API types for easier imports (avoiding conflicts)
+export type { 
+  Location,
+  WeatherData,
+  LocationSearchOptions,
+  LocationConfirmation
+} from './weather-api.js';
+
+export type { 
+  ParsedQuery, 
+  ParsingResult, 
+  QueryParsingRequest,
+  UserPreferences,
+  ValidationConfig,
+  GeminiConfig,
+  ParsingError
+} from './parser.js';
+
+export type {
+  ParsedWeatherQuery,
+  RoutingContext,
+  RoutingResult,
+  RoutingDecision,
+  QueryRouterConfig
+} from './routing.js';
+
+// Export enums
+export { IntentType } from './parser.js';

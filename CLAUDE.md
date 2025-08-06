@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Smart Weather MCP Server designed for Google Cloud Run deployment. The project follows the Shopify Storefront MCP design philosophy with user-intent-driven tools, using TypeScript and Node.js to provide intelligent weather querying capabilities through AI-powered natural language understanding.
 
-🎯 **Current Status**: **Phase 2.1 Parsing Optimization COMPLETED** ✅ - Hybrid rule-based parsing with AI fallback successfully implemented. All complex Chinese queries now working with dynamic confidence thresholds and graceful degradation.
+🎯 **Current Status**: **Phase 3.1 API Client Implementation COMPLETED** ✅ - Weather API client architecture implemented with Google Maps/Weather integration. Context format fixes, time handling, and Gemini AI optimization completed. System ready for full weather data integration.
 
 ## Essential Commands
 
@@ -159,16 +159,17 @@ gcloud run deploy smart-weather-mcp --image gcr.io/PROJECT_ID/smart-weather-mcp 
 
 ## Current Project Status
 
-✅ **Phase 2.1 Parsing Optimization COMPLETED** - Hybrid rule-based parsing with AI fallback successfully implemented.
+✅ **Phase 3.1 API Client Implementation COMPLETED** - Weather API client architecture implemented with context format fixes and time handling.
 
-## ✅ Phase 2.1 Achievements: Parsing Architecture Optimization
+## ✅ Phase 3.1 Achievements: API Client Implementation & Context Optimization
 
-### **Problem Solved**
+### **Problems Solved**
 
-- ✅ Hybrid rule-based + AI fallback architecture implemented
-- ✅ All complex Chinese queries now working successfully
-- ✅ Dynamic confidence thresholds for optimal performance
-- ✅ Graceful degradation when Gemini AI unavailable
+- ✅ **Context Format Fixed**: Removed strict key-value validation, now accepts natural language context
+- ✅ **Time Integration**: Added TimeService for relative time expressions (今天、明天、昨天)
+- ✅ **Gemini AI Optimization**: Corrected model name to `gemini-2.5-flash-lite`, improved prompts
+- ✅ **Weather API Architecture**: Implemented GoogleMapsClient, GoogleWeatherClient, LocationService, WeatherService
+- ✅ **Hybrid Parsing Enhanced**: Rule-based + AI fallback with time context integration
 
 ### **Implementation Completed**
 

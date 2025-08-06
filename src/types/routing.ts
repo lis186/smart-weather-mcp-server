@@ -32,6 +32,7 @@ export type WeatherMetric =
   | 'wave_height'
   | 'wave_period'
   | 'tide_times'
+  | 'feels_like'
   | 'pollen_count'
   | 'unknown';
 

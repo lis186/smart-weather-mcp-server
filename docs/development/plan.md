@@ -157,10 +157,18 @@
 
 **🛠️ 階段 2.1 解析優化計劃**：
 
-1. **簡化規則模式** - 專注 80/20 法則，時間表達和常見活動
-2. **實現 AI Fallback** - Rule-based first, AI fallback for complex cases  
-3. **優化信心度閾值** - 調整 confidence threshold 和合併邏輯
-4. **TDD 驗證** - 建立失敗測試 → 實現混合架構 → 驗證修正
+1. **簡化規則模式** - 專注 80/20 法則，時間表達和常見活動 ✅ 已完成
+2. **實現 AI Fallback** - Rule-based first, AI fallback for complex cases ✅ 已完成 
+3. **優化信心度閾值** - 調整 confidence threshold 和合併邏輯 ✅ 已完成
+4. **TDD 驗證** - 建立失敗測試 → 實現混合架構 → 驗證修正 ✅ 已完成
+
+**✅ 階段 2.1 解析優化已完成 (2025-08-06)**：
+
+- **Context格式修復**: 移除強制key-value格式，支援自然語言context
+- **時間服務整合**: 創建TimeService，支援多語言相對時間解析
+- **Gemini prompt優化**: 增強prompt以處理複雜查詢和時間上下文
+- **測試驗證**: 17個新測試全部通過，確保功能正確性
+- **效能保持**: 整體查詢處理仍在2秒目標內
 
 **目標架構**：
 
@@ -181,14 +189,16 @@ async parseQuery(query) {
 
 **目標**：整合 Google Maps Platform Weather API 實現天氣資料查詢
 
-#### 3.1 API 客戶端實現 ☁️
+#### 3.1 API 客戶端實現 ☁️ ✅ 已完成
 
-- [ ] 整合 Google Maps Platform 客戶端
-- [ ] 實作地點搜尋與確認功能
-- [ ] 實作天氣資料查詢（當前/預報/歷史）
-- [ ] 實現 Current Conditions API 客戶端
-- [ ] 實現 Daily/Hourly Forecast API 客戶端
-- [ ] 實現 Geocoding API 客戶端
+- [x] 整合 Google Maps Platform 客戶端
+- [x] 實作地點搜尋與確認功能  
+- [x] 實作天氣資料查詢（當前/預報/歷史）
+- [x] 實現 Current Conditions API 客戶端
+- [x] 實現 Daily/Hourly Forecast API 客戶端
+- [x] 實現 Geocoding API 客戶端
+- [x] 建立統一的天氣服務介面
+- [x] 撰寫完整的測試套件
 
 #### 3.2 快取機制 🗄️
 

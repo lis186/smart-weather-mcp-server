@@ -3,7 +3,8 @@
     "smart-weather": {
       "command": "node",
       "args": [
-        "/Users/justinlee/dev/smart-weather-mcp-server/worktrees/phase1/dist/mcp-stdio.js"
+        "/Users/justinlee/dev/smart-weather-mcp-server/dist/unified-server.js",
+        "--mode=stdio"
       ],
       "env": {
         "NODE_ENV": "development",

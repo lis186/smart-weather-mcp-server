@@ -15,6 +15,7 @@ import {
 import { WeatherQuery } from '../types/index.js';
 import { APISelector } from './api-selector.js';
 import { logger } from './logger.js';
+import { timeService, TimeContext } from './time-service.js';
 
 export class QueryRouter {
   private readonly apiSelector: APISelector;
@@ -29,7 +30,7 @@ export class QueryRouter {
       defaultUnits: 'metric',
       maxProcessingTime: 2000,
       minConfidenceThreshold: 0.3,
-      aiThreshold: 0.50,
+      aiThreshold: 0.65, // 降低閾值，讓更多查詢使用AI增強
       enableFallbacks: true,
       apiPriority: ['google_current_conditions', 'google_daily_forecast'],
       caching: { enabled: true, ttl: 300000, maxSize: 1000 },
@@ -47,8 +48,11 @@ export class QueryRouter {
     const startTime = Date.now();
     
     try {
+      // Create time context for query
+      const timeContext = await timeService.createTimeContext(query.query);
+      
       // Parse the query into structured format (hybrid rule-based + AI fallback)
-      const parsedQuery = await this.parseQuery(query);
+      const parsedQuery = await this.parseQuery(query, timeContext);
       
       // Create routing context with defaults
       const routingContext: RoutingContext = context || {
@@ -133,7 +137,7 @@ export class QueryRouter {
   /**
    * Hybrid query parsing with rule-based first, AI fallback for complex cases
    */
-  private async parseQuery(query: WeatherQuery): Promise<ParsedWeatherQuery> {
+  private async parseQuery(query: WeatherQuery, timeContext?: TimeContext): Promise<ParsedWeatherQuery> {
     const startTime = Date.now();
     
     // Step 1: Rule-based parsing for common patterns
@@ -151,7 +155,10 @@ export class QueryRouter {
           threshold: aiThreshold 
         });
         
-        const aiResult = await this.geminiParser.parseQuery({ query: query.query });
+        const aiResult = await this.geminiParser.parseQuery({ 
+          query: query.query,
+          context: query.context || (timeContext ? `Current time: ${timeContext.currentTime.toISOString()}, timezone: ${timeContext.timezone}` : undefined)
+        });
         
         if (aiResult.success && aiResult.result) {
           // Merge AI result with rule-based structure
@@ -216,6 +223,11 @@ export class QueryRouter {
         text.includes('next') || text.includes('future') || text.includes('預報')) {
       intent = 'forecast';
       intentConfidence = 0.9;
+    } else if (text.includes('yesterday') || text.includes('昨天') || text.includes('前天') ||
+               text.includes('last week') || text.includes('上週') || text.includes('historical') ||
+               text.includes('past') || text.includes('之前') || text.includes('過去')) {
+      intent = 'historical';
+      intentConfidence = 0.9;
     } else if (text.includes('surf') || text.includes('wave') || text.includes('衝浪') || 
                text.includes('marine') || text.includes('ocean') || text.includes('sea')) {
       intent = 'marine_conditions';
@@ -230,15 +242,23 @@ export class QueryRouter {
     
     // Enhanced metrics extraction
     const metrics: WeatherMetric[] = ['temperature'];
-    if (text.includes('wind') || text.includes('風')) metrics.push('wind_speed');
-    if (text.includes('humidity') || text.includes('濕度')) metrics.push('humidity');
-    if (text.includes('rain') || text.includes('precipitation') || text.includes('雨')) metrics.push('precipitation');
-    if (text.includes('pressure') || text.includes('氣壓')) metrics.push('pressure');
+    if (text.includes('wind') || text.includes('風') || text.includes('風速') || text.includes('風力')) metrics.push('wind_speed');
+    if (text.includes('humidity') || text.includes('濕度') || text.includes('相對濕度')) metrics.push('humidity');
+    if (text.includes('rain') || text.includes('precipitation') || text.includes('雨') || text.includes('降雨') || text.includes('降水')) metrics.push('precipitation');
+    if (text.includes('pressure') || text.includes('氣壓') || text.includes('大氣壓力')) metrics.push('pressure');
+    if (text.includes('uv') || text.includes('紫外線') || text.includes('UV指數')) metrics.push('uv_index');
+    if (text.includes('visibility') || text.includes('能見度') || text.includes('視程')) metrics.push('visibility');
+    if (text.includes('feels like') || text.includes('體感') || text.includes('感覺溫度')) metrics.push('feels_like');
     
     // Time scope detection
-    const timeScope = intent === 'forecast' 
-      ? { type: 'forecast' as const, duration: '7days' }
-      : { type: 'current' as const };
+    let timeScope;
+    if (intent === 'forecast') {
+      timeScope = { type: 'forecast' as const, duration: '7days' };
+    } else if (intent === 'historical') {
+      timeScope = { type: 'historical' as const, duration: '30days' };
+    } else {
+      timeScope = { type: 'current' as const };
+    }
     
     // Language detection (enhanced for Japanese)
     let language: 'en' | 'zh-TW' | 'ja' = 'en';

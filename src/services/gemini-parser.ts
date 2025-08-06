@@ -136,23 +136,31 @@ export class GeminiWeatherParser {
    * Build parsing prompt for Gemini
    */
   private buildParsingPrompt(request: QueryParsingRequest): string {
+    const currentTime = new Date().toISOString();
     const basePrompt = `You are a weather query parser. Parse the following weather query and return a JSON response with the specified structure.
 
 Query: "${request.query}"
-Context: ${request.context || 'None'}
+Context: ${request.context || 'None provided'}
+Current Time: ${currentTime}
+Current Timezone: Asia/Taipei
 
 Instructions:
 1. Extract location information (name, coordinates if obvious like "Tokyo" -> lat: 35.6762, lng: 139.6503)
 2. Determine primary intent: CURRENT_WEATHER, WEATHER_FORECAST, HISTORICAL_WEATHER, WEATHER_ADVICE, LOCATION_SEARCH
-3. Identify time scope: current, forecast (future), or historical (past)
+3. Identify time scope relative to current time: current, forecast (future), or historical (past)
+   - Handle relative time expressions: "today", "tomorrow", "yesterday", "今天", "明天", "昨天", "今日", "明日"
+   - Consider context for time interpretation
 4. Extract weather metrics mentioned: temperature, humidity, precipitation, wind, pressure, visibility, uv_index, air_quality, conditions, feels_like
 5. Determine user preferences: language, temperature unit, detail level
 6. Provide confidence score (0.0 to 1.0) for overall parsing quality
+7. Consider the context as free-form additional information (not strictly key-value format)
 
-Support multiple languages:
-- English: "What's the weather like in New York today?"
-- Chinese: "明天北京的天氣如何？", "台北今天會下雨嗎？"  
-- Japanese: "今日の東京の天気はどうですか？"
+Support multiple languages and complex queries:
+- English: "What's the weather like in New York today?", "Should I bring an umbrella to Okinawa tomorrow for surfing?"
+- Chinese: "明天北京的天氣如何？", "台北今天會下雨嗎？", "沖繩明天天氣預報 衝浪條件 海浪高度 風速"
+- Japanese: "今日の東京の天気はどうですか？", "沖縄の明日の海の状況は？"
+
+Handle complex queries with multiple intents and specific activities like surfing, air quality, marine conditions.
 
 Return JSON in this exact format:`;
 
