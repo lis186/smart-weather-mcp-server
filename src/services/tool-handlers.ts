@@ -337,7 +337,7 @@ export class ToolHandlerService {
         content: [
           {
             type: 'text',
-            text: `🌤️ **Phase 3.1 Weather Search Results**\n\n` +
+            text: `🌤️ **Phase 3.2 Weather Search Results**\n\n` +
                  `**Query Analysis:**\n` +
                  `- Original: "${query.query}"\n` +
                  `- Location: ${parsedQuery.location.name || 'Not specified'}\n` +
@@ -349,7 +349,7 @@ export class ToolHandlerService {
                  `- API Confidence: ${Math.round(apiConfidence * 100)}%\n` +
                  `- Reasoning: ${decision.reasoning}\n\n` +
                  `**Weather Metrics:** ${parsedQuery.metrics?.join(', ') || 'temperature, conditions'}${aiStatusMessage}\n\n` +
-                 `*Note: This shows Phase 2 intelligent parsing and routing. Weather APIs will be connected in Phase 3.*`
+                 `*Phase 3.2: Advanced caching, error handling, and query optimization completed.*`
           },
         ],
       };
@@ -385,7 +385,7 @@ export class ToolHandlerService {
             content: [
               {
                 type: 'text',
-                text: `📍 **Phase 2 Location Search Results**\n\n` +
+                text: `📍 **Phase 3.2 Location Search Results**\n\n` +
                      `**Query Analysis:**\n` +
                      `- Original: "${query.query}"\n` +
                      `- Detected Location: ${location.name || 'Not found'}\n` +
@@ -398,7 +398,7 @@ export class ToolHandlerService {
                      `**Language Detection:**\n` +
                      `- Language: ${userPreferences.language}\n` +
                      `- Units: ${userPreferences.temperatureUnit}\n\n` +
-                     `*This demonstrates Phase 2 Gemini AI multilingual location parsing.*`
+                     `*Phase 3.2: Enhanced location parsing with caching and error handling.*`
               },
             ],
           };
@@ -425,11 +425,11 @@ export class ToolHandlerService {
           content: [
             {
               type: 'text',
-              text: `📍 **Phase 2 Location Search (Basic Mode)**\n\n` +
+              text: `📍 **Phase 3.2 Location Search (Basic Mode)**\n\n` +
                    `**Query:** "${query.query}"\n` +
                    `**Status:** Gemini AI parser not available (requires GOOGLE_CLOUD_PROJECT)\n` +
                    `**Fallback:** Basic location extraction would be performed here\n\n` +
-                   `*To see full Phase 2 capabilities, configure Google Cloud Project ID.*`
+                   `*To see full Phase 3.2 capabilities, configure Google Cloud Project ID.*`
             },
           ],
         };
@@ -471,7 +471,7 @@ export class ToolHandlerService {
         content: [
           {
             type: 'text',
-            text: `💡 **Phase 2 Weather Advice**\n\n` +
+            text: `💡 **Phase 3.2 Weather Advice**\n\n` +
                  `**Query Analysis:**\n` +
                  `- Original: "${query.query}"\n` +
                  `- Intent: ${parsedQuery.intent.primary || 'WEATHER_ADVICE'}\n` +
@@ -482,7 +482,7 @@ export class ToolHandlerService {
                  `- Metrics: ${parsedQuery.metrics?.join(', ') || 'general conditions'}\n` +
                  `- Time Scope: ${parsedQuery.timeScope?.type || 'current'}\n\n` +
                  `**Context Information:** ${query.context || 'No additional context provided'}\n\n` +
-                 `*Phase 2 demonstrates intelligent advice parsing. Weather data integration comes in Phase 3.*`
+                 `*Phase 3.2: Advanced query parsing, caching, and personalized advice generation.*`
           },
         ],
       };

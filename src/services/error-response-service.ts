@@ -46,7 +46,8 @@ export class ErrorResponseService {
         code: friendlyError.code,
         message: friendlyError.message,
         details: friendlyError.suggestion
-      }
+      },
+      timestamp: new Date().toISOString()
     };
   }
 

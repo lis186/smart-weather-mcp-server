@@ -30,7 +30,7 @@ export class QueryRouter {
       defaultUnits: 'metric',
       maxProcessingTime: 2000,
       minConfidenceThreshold: 0.3,
-      aiThreshold: 0.65, // 降低閾值，讓更多查詢使用AI增強
+      aiThreshold: 0.50, // 符合 Smart Weather 原則：0.5 with AI available
       enableFallbacks: true,
       apiPriority: ['google_current_conditions', 'google_daily_forecast'],
       caching: { enabled: true, ttl: 300000, maxSize: 1000 },
