@@ -47,8 +47,26 @@ export class ErrorResponseService {
         message: friendlyError.message,
         details: friendlyError.suggestion
       },
-      timestamp: new Date().toISOString()
+      timestamp: this.getTaipeiTimestamp()  
     };
+  }
+
+  /**
+   * Get current timestamp in Asia/Taipei timezone in ISO format
+   */
+  private static getTaipeiTimestamp(): string {
+    const now = new Date();
+    const taipeiTime = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Taipei'
+    }).format(now);
+    
+    // Get time part in HH:mm:ss format
+    const timeStr = now.toLocaleTimeString('sv-SE', {
+      timeZone: 'Asia/Taipei',
+      hour12: false
+    });
+    
+    return `${taipeiTime}T${timeStr}+08:00`;
   }
 
   private static isWeatherAPIError(error: any): error is WeatherAPIError {
