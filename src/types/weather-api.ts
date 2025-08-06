@@ -152,9 +152,26 @@ export interface CacheEntry<T> {
   ttl: number;
 }
 
+// Enhanced cache configuration
 export interface CacheConfig {
-  currentWeatherTTL: number; // 5 minutes
-  forecastTTL: number; // 30 minutes  
-  historicalTTL: number; // 1 hour
-  geocodingTTL: number; // 24 hours
+  // TTL settings for different data types (in milliseconds)
+  currentWeatherTTL?: number;    // Default: 5 minutes
+  forecastTTL?: number;          // Default: 30 minutes  
+  historicalTTL?: number;        // Default: 24 hours
+  locationTTL?: number;          // Default: 7 days
+  geocodingTTL?: number;         // Default: 24 hours
+  defaultTTL?: number;           // Default: 5 minutes
+  
+  // Cache size management
+  maxSize?: number;              // Default: 10000 entries
+  cleanupThreshold?: number;     // Default: 8000 entries
+  warningThreshold?: number;     // Default: 7000 entries
+  
+  // Cleanup settings
+  cleanupInterval?: number;      // Default: 60 seconds
+  enableAutoCleanup?: boolean;   // Default: true
+  
+  // Performance monitoring
+  enableMetrics?: boolean;       // Default: true
+  logCacheEvents?: boolean;      // Default: false (debug only)
 }

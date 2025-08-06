@@ -7,6 +7,7 @@ import { GoogleWeatherClient } from './google-weather-client.js';
 import { LocationService } from './location-service.js';
 import { SecretManager } from './secret-manager.js';
 import { logger } from './logger.js';
+import { ErrorResponseService } from './error-response-service.js';
 import type {
   WeatherAPIConfig,
   WeatherAPIResponse,
@@ -67,15 +68,28 @@ export class WeatherService {
   private readonly config: WeatherServiceConfig;
   private requestCount = 0;
   private lastResetTime = Date.now();
+  
+  // Cache performance monitoring
+  private cacheHits = 0;
+  private cacheMisses = 0;
+  private cacheEvictions = 0;
+  private cacheErrors = 0;
 
   // Cache configuration constants
   private static readonly MAX_CACHE_SIZE = 10000;
   private static readonly CACHE_CLEANUP_THRESHOLD = 8000;
+  private static readonly CACHE_WARNING_THRESHOLD = 7000;
   
   // Time constants (in milliseconds)
   private static readonly CACHE_CLEANUP_INTERVAL = 60000; // 1 minute
   private static readonly DEFAULT_CACHE_TTL = 300000; // 5 minutes
   private static readonly RATE_LIMIT_WINDOW = 60000; // 1 minute
+  
+  // Differentiated TTL strategies
+  private static readonly CURRENT_WEATHER_TTL = 300000; // 5 minutes
+  private static readonly FORECAST_TTL = 1800000; // 30 minutes
+  private static readonly HISTORICAL_TTL = 86400000; // 24 hours
+  private static readonly LOCATION_CACHE_TTL = 604800000; // 7 days
   
   // API limits
   private static readonly DEFAULT_MAX_REQUESTS_PER_MINUTE = 60;
@@ -251,14 +265,12 @@ export class WeatherService {
     // Validate request parameters
     const validationError = this.validateLocation(location);
     if (validationError) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_LOCATION',
-          message: validationError,
-          retryable: false
-        }
-      };
+      const error = new Error(validationError);
+      error.name = 'INVALID_LOCATION';
+      return ErrorResponseService.createErrorResponse(error, {
+        location: location.name,
+        language: options?.language
+      });
     }
     
     if (!this.weatherClient) {
@@ -517,15 +529,22 @@ export class WeatherService {
   private getFromCache<T>(key: string): T | null {
     try {
       const entry = this.cache.get(key);
-      if (!entry) return null;
-      
-      if (Date.now() > entry.timestamp + entry.ttl) {
-        this.cache.delete(key);
+      if (!entry) {
+        this.cacheMisses++;
         return null;
       }
       
+      if (Date.now() > entry.timestamp + entry.ttl) {
+        this.cache.delete(key);
+        this.cacheEvictions++;
+        this.cacheMisses++;
+        return null;
+      }
+      
+      this.cacheHits++;
       return entry.data;
     } catch (error) {
+      this.cacheErrors++;
       logger.error('Cache retrieval error', { key, error: (error as Error).message });
       // Remove corrupted entry
       this.cache.delete(key);
@@ -567,29 +586,135 @@ export class WeatherService {
         timestamp: Date.now(),
         ttl
       });
+      
+      // Check if we should warn about cache size
+      if (this.cache.size >= WeatherService.CACHE_WARNING_THRESHOLD) {
+        logger.warn('Cache size approaching limit', { 
+          currentSize: this.cache.size,
+          maxSize: WeatherService.MAX_CACHE_SIZE,
+          hitRate: this.getCacheHitRate()
+        });
+      }
     } catch (error) {
+      this.cacheErrors++;
       logger.error('Cache storage error', { key, error: (error as Error).message });
     }
   }
 
+  /**
+   * Get differentiated TTL based on data type and request characteristics
+   * Different data types have different update frequencies and cache strategies
+   */
   private getCacheTTL(request: WeatherQueryRequest): number {
     const config = this.config.cache?.config;
-    if (!config) return WeatherService.DEFAULT_CACHE_TTL;
     
-    if (request.options?.includeHourly) {
-      return config.forecastTTL;
+    // Determine data type from request
+    const queryType = this.determineQueryType(request);
+    
+    switch (queryType) {
+      case 'current_weather':
+        return config?.currentWeatherTTL || WeatherService.CURRENT_WEATHER_TTL;
+      
+      case 'forecast':
+        // Longer TTL for forecast data as it changes less frequently
+        return config?.forecastTTL || WeatherService.FORECAST_TTL;
+      
+      case 'historical':
+        // Historical data never changes, very long TTL
+        return config?.historicalTTL || WeatherService.HISTORICAL_TTL;
+      
+      case 'location':
+        // Location data is very stable, longest TTL
+        return config?.locationTTL || WeatherService.LOCATION_CACHE_TTL;
+      
+      default:
+        return config?.defaultTTL || WeatherService.DEFAULT_CACHE_TTL;
+    }
+  }
+
+  /**
+   * Determine query type for TTL strategy
+   */
+  private determineQueryType(request: WeatherQueryRequest): string {
+    const query = request.query.toLowerCase();
+    
+    if (query.includes('forecast') || query.includes('tomorrow') || query.includes('next') || 
+        query.includes('預報') || query.includes('明天')) {
+      return 'forecast';
     }
     
-    return config.currentWeatherTTL;
+    if (query.includes('yesterday') || query.includes('last') || query.includes('historical') ||
+        query.includes('昨天') || query.includes('過去') || query.includes('歷史')) {
+      return 'historical';
+    }
+    
+    if (request.options?.includeHourly || request.options?.forecastDays) {
+      return 'forecast';
+    }
+    
+    // Check if this is primarily a location query
+    if (query.includes('where') || query.includes('location') || query.includes('find') ||
+        query.includes('哪裡') || query.includes('位置') || query.includes('地點')) {
+      return 'location';
+    }
+    
+    return 'current_weather';
   }
 
   private cleanupCache(): void {
     const now = Date.now();
+    let cleanedCount = 0;
+    
     for (const [key, entry] of this.cache.entries()) {
       if (now > entry.timestamp + entry.ttl) {
         this.cache.delete(key);
+        cleanedCount++;
       }
     }
+    
+    if (cleanedCount > 0) {
+      this.cacheEvictions += cleanedCount;
+      logger.debug('Cache cleanup completed', { 
+        removed: cleanedCount,
+        currentSize: this.cache.size,
+        hitRate: this.getCacheHitRate()
+      });
+    }
+  }
+
+  /**
+   * Get current cache hit rate
+   */
+  private getCacheHitRate(): number {
+    const total = this.cacheHits + this.cacheMisses;
+    return total > 0 ? Math.round((this.cacheHits / total) * 100) / 100 : 0;
+  }
+
+  /**
+   * Get comprehensive cache performance metrics
+   */
+  getCacheMetrics(): {
+    size: number;
+    maxSize: number;
+    hits: number;
+    misses: number;
+    hitRate: number;
+    evictions: number;
+    errors: number;
+    memoryUsage: string;
+  } {
+    const totalRequests = this.cacheHits + this.cacheMisses;
+    
+    return {
+      size: this.cache.size,
+      maxSize: WeatherService.MAX_CACHE_SIZE,
+      hits: this.cacheHits,
+      misses: this.cacheMisses,
+      hitRate: this.getCacheHitRate(),
+      evictions: this.cacheEvictions,
+      errors: this.cacheErrors,
+      memoryUsage: `${Math.round((this.cache.size / WeatherService.MAX_CACHE_SIZE) * 100)}%`
+    };
   }
 
   /**
@@ -754,17 +879,27 @@ export class WeatherService {
   }
 
   /**
-   * Get service statistics
+   * Get comprehensive service statistics including cache metrics
    */
   getStatistics(): object {
+    const cacheMetrics = this.getCacheMetrics();
+    
     return {
-      requestCount: this.requestCount,
-      cacheSize: this.cache.size,
+      requests: {
+        total: this.requestCount,
+        resetTime: new Date(this.lastResetTime).toISOString()
+      },
+      cache: cacheMetrics,
       services: {
         weatherClient: !!this.weatherClient,
-        locationService: !!this.locationService
+        locationService: !!this.locationService,
+        cacheEnabled: !!this.config.cache?.enabled
       },
-      lastResetTime: new Date(this.lastResetTime).toISOString()
+      performance: {
+        cacheHitRate: cacheMetrics.hitRate,
+        memoryUsage: cacheMetrics.memoryUsage,
+        healthStatus: cacheMetrics.errors === 0 ? 'healthy' : 'degraded'
+      }
     };
   }
 }
