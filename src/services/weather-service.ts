@@ -68,6 +68,10 @@ export class WeatherService {
   private requestCount = 0;
   private lastResetTime = Date.now();
 
+  // Cache configuration constants
+  private static readonly MAX_CACHE_SIZE = 10000;
+  private static readonly CACHE_CLEANUP_THRESHOLD = 8000;
+
   constructor(config: WeatherServiceConfig) {
     this.config = config;
     this.initializeServices();
@@ -469,6 +473,22 @@ export class WeatherService {
   }
 
   private setCache<T>(key: string, data: T, ttl: number): void {
+    // Check cache size bounds to prevent memory leaks
+    if (this.cache.size >= WeatherService.MAX_CACHE_SIZE) {
+      this.cleanupCache();
+      
+      // If still at max after cleanup, remove oldest entries
+      if (this.cache.size >= WeatherService.MAX_CACHE_SIZE) {
+        const entriesToRemove = this.cache.size - WeatherService.CACHE_CLEANUP_THRESHOLD;
+        const entries = Array.from(this.cache.entries())
+          .sort(([,a], [,b]) => a.timestamp - b.timestamp);
+        
+        for (let i = 0; i < entriesToRemove; i++) {
+          this.cache.delete(entries[i][0]);
+        }
+      }
+    }
+    
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
@@ -519,6 +539,8 @@ export class WeatherService {
 
   /**
    * Mock response methods (fallback when APIs not available)
+   * TODO: Remove mock implementations when real weather APIs are integrated
+   * These provide consistent test data during development phase
    */
   private createMockCurrentWeather(location: Location, options?: WeatherQueryRequest['options']): WeatherAPIResponse<CurrentWeatherData> {
     const temp = 20 + (Math.random() - 0.5) * 20;

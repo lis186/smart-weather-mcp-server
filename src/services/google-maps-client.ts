@@ -27,11 +27,21 @@ export class GoogleMapsClient {
   private readonly baseUrl = 'https://maps.googleapis.com/maps/api';
   private readonly weatherBaseUrl = 'https://maps.googleapis.com/maps/api/weather';
 
+  // Configuration constants
+  private static readonly DEFAULT_TIMEOUT = 5000;
+  private static readonly DEFAULT_RETRY_ATTEMPTS = 3;
+  private static readonly DEFAULT_RATE_LIMIT_DELAY = 1000;
+
   constructor(config: WeatherAPIConfig) {
+    // Validate API key format for production security
+    if (!config.apiKey || !this.isValidApiKeyFormat(config.apiKey)) {
+      throw new Error('Invalid Google Maps API key format');
+    }
+    
     this.config = {
-      timeout: 5000,
-      retryAttempts: 3,
-      rateLimitDelay: 1000,
+      timeout: GoogleMapsClient.DEFAULT_TIMEOUT,
+      retryAttempts: GoogleMapsClient.DEFAULT_RETRY_ATTEMPTS,
+      rateLimitDelay: GoogleMapsClient.DEFAULT_RATE_LIMIT_DELAY,
       ...config
     };
 
@@ -325,6 +335,21 @@ export class GoogleMapsClient {
       });
       return false;
     }
+  }
+
+  /**
+   * Validate Google Maps API key format
+   * Google Maps API keys typically start with 'AIza' and are 39 characters long
+   */
+  private isValidApiKeyFormat(apiKey: string): boolean {
+    if (!apiKey || typeof apiKey !== 'string') {
+      return false;
+    }
+    
+    // Google Maps API keys typically start with 'AIza' and are 39 characters
+    // However, this can vary, so we use a more lenient validation
+    return apiKey.length >= 20 && apiKey.length <= 50 && 
+           /^[A-Za-z0-9_-]+$/.test(apiKey);
   }
 
   /**

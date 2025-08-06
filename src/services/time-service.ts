@@ -26,14 +26,18 @@ export class TimeService {
 
   /**
    * Get current time in specified timezone
+   * TODO: Implement proper timezone conversion using Intl.DateTimeFormat or date-fns
+   * Current implementation returns system time without timezone adjustment
    */
   async getCurrentTime(timezone?: string): Promise<Date> {
-    // In a real implementation, we would use MCP time service
+    // TODO: Replace with proper MCP time service integration
     // For now, use system time with timezone adjustment
     const tz = timezone || this.defaultTimezone;
     
     try {
-      // This would be replaced with actual MCP time service call
+      // TODO: Implement actual timezone conversion
+      // This currently returns system time without proper timezone handling
+      // Consider using: new Intl.DateTimeFormat('en-US', { timeZone: tz }).format(new Date())
       return new Date();
     } catch (error) {
       // Fallback to system time

@@ -239,6 +239,7 @@ export class GoogleWeatherClient extends GoogleMapsClient {
    * Make weather API request (internal method)
    */
   private async makeWeatherRequest(endpoint: string, params: any): Promise<any> {
+    // TODO: Implement actual Google Weather API calls when service becomes available
     // For now, this creates mock responses since Google Weather API is not yet publicly available
     // Real implementation will use actual API endpoints when available
     
@@ -364,6 +365,8 @@ export class GoogleWeatherClient extends GoogleMapsClient {
 
   /**
    * Create mock weather response (temporary implementation)
+   * TODO: Replace with actual Google Weather API when publicly available
+   * Current implementation provides realistic mock data for development/testing
    */
   private createMockWeatherResponse(endpoint: string, params: any): any {
     const baseTemp = 20 + (Math.random() - 0.5) * 20; // 10-30°C
