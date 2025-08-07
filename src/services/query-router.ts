@@ -200,10 +200,20 @@ export class QueryRouter {
 
     // Enhanced location extraction with more patterns
     const locationPatterns = [
+      // English patterns
       /(?:in|at|for)\s+([^,\n]+?)(?:\s+(?:today|tomorrow|weather|forecast)|$)/i,
       /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:weather|forecast|today|tomorrow)/i,
       /^([^,\n]+?)\s+(?:weather|forecast|今天|明天|天氣)/i,
-      /([^,\n]+?)\s*[,，]\s*(?:weather|forecast|天氣)/i
+      /([^,\n]+?)\s*[,，]\s*(?:weather|forecast|天氣)/i,
+      // Chinese patterns - more comprehensive
+      /^([^,\n]+?)(?:現在|今天|明天|後天|週末).*?(?:天氣|氣象|預報)/i,
+      /^([^,\n]+?).*?(?:天氣|氣象|預報).*?(?:如何|怎樣|怎麼樣)/i,
+      /([^,\n]+?)(?:的)?(?:天氣|氣象|預報)/i,
+      // Activity-based patterns
+      /(?:in|at|for)\s+([^,\n?]+?)(?:\s+(?:this|next|for))/i,
+      /(?:outdoor|activities|wedding|planning).*?in\s+([^,\n?]+)/i,
+      // General location patterns
+      /([A-Za-z\u4e00-\u9fff\s]+?)(?:\s+(?:weather|天氣|forecast|預報|conditions|狀況)|$)/i
     ];
     
     let location: string | null = null;

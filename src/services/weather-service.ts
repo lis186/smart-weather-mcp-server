@@ -549,6 +549,22 @@ export class WeatherService {
       if (currentWeather.success && currentWeather.data) {
         result.current = currentWeather.data;
         sources.push('current-conditions');
+      } else if (currentWeather.error && 
+                 (currentWeather.error.code === 'LOCATION_NOT_SUPPORTED' ||
+                  currentWeather.error.code === 'API_ACCESS_DENIED')) {
+        // For critical errors like location not supported, return immediately
+        // This implements the Honest Transparency approach
+        logger.info('Critical error detected, returning immediately', {
+          location: location.name,
+          errorCode: currentWeather.error.code,
+          message: currentWeather.error.message
+        });
+        
+        return {
+          success: false,
+          error: currentWeather.error,
+          timestamp: new Date().toISOString()
+        };
       }
 
       // Fetch forecast if requested
@@ -557,6 +573,17 @@ export class WeatherService {
         if (forecast.success && forecast.data) {
           result.daily = forecast.data;
           sources.push('daily-forecast');
+        } else if (forecast.error && 
+                   (forecast.error.code === 'LOCATION_NOT_SUPPORTED' ||
+                    forecast.error.code === 'API_ACCESS_DENIED')) {
+          // Return forecast-specific error if current weather was successful
+          if (!result.current) {
+            return {
+              success: false,
+              error: forecast.error,
+              timestamp: new Date().toISOString()
+            };
+          }
         }
       }
 
@@ -567,6 +594,27 @@ export class WeatherService {
           result.hourly = hourly.data;
           sources.push('hourly-forecast');
         }
+      }
+
+      // Check if we have any successful data
+      if (!result.current && !result.daily && !result.hourly) {
+        // No data available at all
+        return {
+          success: false,
+          error: {
+            code: 'NO_DATA_AVAILABLE',
+            message: `No weather data available for ${location.name}`,
+            details: 'This location may not be supported by our weather data providers',
+            suggestions: [
+              'Try a nearby major city',
+              'Check the location spelling',
+              'Use latitude/longitude coordinates instead'
+            ],
+            severity: 'warning' as const,
+            retryable: false
+          },
+          timestamp: new Date().toISOString()
+        };
       }
 
       // Calculate overall confidence

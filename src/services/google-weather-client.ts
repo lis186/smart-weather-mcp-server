@@ -52,7 +52,8 @@ export class GoogleWeatherClient extends GoogleMapsClient {
       const response = await this.makeWeatherRequest('/current', params);
       
       // Try parsing as real Google Weather API response first
-      const weatherData: CurrentWeatherData = response.data && response.data.current ? 
+      // Google Weather API response has temperature and weatherCondition at top level
+      const weatherData: CurrentWeatherData = response.data && response.data.temperature && response.data.weatherCondition ? 
         this.parseGoogleCurrentWeatherResponse(response.data, request.location) :
         this.parseCurrentWeatherResponse(response.data, request.location);
 
@@ -333,33 +334,65 @@ export class GoogleWeatherClient extends GoogleMapsClient {
    */
   private parseGoogleCurrentWeatherResponse(data: any, location: Location): CurrentWeatherData {
     // Handle real Google Weather API response format
-    if (data && data.current) {
-      const current = data.current;
+    if (data && data.temperature && data.weatherCondition) {
+      logger.info('Parsing real Google Weather API response format', {
+        hasTemperature: !!data.temperature,
+        hasWeatherCondition: !!data.weatherCondition,
+        hasWind: !!data.wind,
+        hasVisibility: !!data.visibility
+      });
+
+      const tempCelsius = data.temperature?.degrees || 20;
+      const tempFahrenheit = tempCelsius * 9/5 + 32;
+      
       return {
         location,
-        timestamp: new Date().toISOString(),
+        timestamp: data.currentTime || new Date().toISOString(),
         temperature: {
-          celsius: current.temperature?.value || 20,
-          fahrenheit: (current.temperature?.value || 20) * 9/5 + 32
+          celsius: tempCelsius,
+          fahrenheit: tempFahrenheit
         },
-        humidity: current.humidity?.value || 60,
+        humidity: data.relativeHumidity || 60,
         windSpeed: {
-          metersPerSecond: current.windSpeed?.value || 5,
-          kilometersPerHour: (current.windSpeed?.value || 5) * 3.6
+          kilometersPerHour: data.wind?.speed?.value || 10,
+          metersPerSecond: (data.wind?.speed?.value || 10) / 3.6
         },
-        windDirection: current.windDirection?.value || 180,
-        pressure: current.pressure?.value || 1013,
-        visibility: current.visibility?.value || 10000,
-        uvIndex: current.uvIndex?.value || 3,
-        description: current.weatherDescription || 'Clear',
-        iconCode: current.weatherIcon || '01d',
-        sunrise: current.sunrise || '06:00:00',
-        sunset: current.sunset || '18:00:00'
+        windDirection: data.wind?.direction?.degrees || 180,
+        pressure: data.airPressure?.meanSeaLevelMillibars || 1013,
+        visibility: data.visibility?.distance || 10,
+        uvIndex: data.uvIndex || 0,
+        description: data.weatherCondition?.description?.text || 'Clear',
+        iconCode: this.mapWeatherTypeToIcon(data.weatherCondition?.type || 'CLEAR'),
+        sunrise: '06:00:00', // Google Weather API doesn't provide sunrise/sunset in current conditions
+        sunset: '18:00:00'
       };
     }
 
     // Fallback to mock parsing if real API response format is unexpected
     return this.parseCurrentWeatherResponse(data, location);
+  }
+
+  /**
+   * Map Google Weather API weather types to icon codes
+   */
+  private mapWeatherTypeToIcon(weatherType: string): string {
+    const iconMap: { [key: string]: string } = {
+      'CLEAR': '01d',
+      'PARTLY_CLOUDY': '02d',
+      'MOSTLY_CLOUDY': '03d',
+      'OVERCAST': '04d',
+      'LIGHT_RAIN': '09d',
+      'MODERATE_RAIN': '10d',
+      'HEAVY_RAIN': '10d',
+      'LIGHT_SNOW': '13d',
+      'MODERATE_SNOW': '13d',
+      'HEAVY_SNOW': '13d',
+      'THUNDERSTORMS': '11d',
+      'FOG': '50d',
+      'MIST': '50d'
+    };
+    
+    return iconMap[weatherType] || '01d';
   }
 
   /**

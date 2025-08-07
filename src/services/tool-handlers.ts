@@ -8,9 +8,10 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { WeatherQuery } from '../types/index.js';
 import { logger } from './logger.js';
 
-// Phase 2 imports
-import { QueryRouter } from './query-router.js';
-import { createWeatherParser } from './gemini-parser.js';
+// Phase 2+ imports  
+import { IntelligentQueryService } from './intelligent-query-service.js';
+import { GeminiWeatherParser } from './gemini-parser.js';
+import { GeminiClient } from './gemini-client.js';
 import { WeatherErrorHandler } from '../utils/error-handler.js';
 
 // Phase 4.1 imports
@@ -24,20 +25,21 @@ import type { ParsedWeatherQuery, RoutingDecision } from '../types/routing.js';
  * Phase 2: Integrated with Gemini AI parser and intelligent query routing
  */
 export class ToolHandlerService {
-  private static queryRouter: QueryRouter | null = null;
-  private static geminiParser: any = null;
+  private static intelligentQueryService: IntelligentQueryService | null = null;
+  private static geminiParser: GeminiWeatherParser | null = null;
   private static errorHandler = new WeatherErrorHandler();
   private static weatherService: WeatherService | null = null;
 
   /**
-   * Initialize Phase 2 components
+   * Initialize Phase 2+ components with IntelligentQueryService
    */
-  private static initializePhase2Components() {
+  private static initializeIntelligentQueryService() {
     // Initialize Gemini parser first if project ID is available
     const projectId = process.env.GOOGLE_CLOUD_PROJECT;
     if (projectId && !this.geminiParser) {
       try {
-        this.geminiParser = createWeatherParser(projectId, {
+        const geminiClient = new GeminiClient({ projectId });
+        this.geminiParser = new GeminiWeatherParser(geminiClient, {
           minConfidence: 0.3,
           strictMode: false
         });
@@ -47,14 +49,13 @@ export class ToolHandlerService {
       }
     }
 
-    // Initialize QueryRouter with Gemini parser
-    if (!this.queryRouter) {
-      this.queryRouter = new QueryRouter(this.geminiParser, {
-        minConfidenceThreshold: 0.3,
-        enableFallbacks: true,
-        aiThreshold: 0.50
+    // Initialize IntelligentQueryService
+    if (!this.intelligentQueryService) {
+      const config = { apiKey: process.env.WEATHER_API_KEY || 'AIzaSyDTrMoVpq8yGL7SMbWRrrS7w7qw1CdzEwo' };
+      this.intelligentQueryService = new IntelligentQueryService(config, this.geminiParser || undefined);
+      logger.info('Phase 2+ IntelligentQueryService initialized', {
+        hasGeminiAI: !!this.geminiParser
       });
-      logger.info('Phase 2 Query Router initialized');
     }
   }
   
@@ -127,8 +128,8 @@ export class ToolHandlerService {
    */
   static async handleToolCall(name: string, args: unknown) {
     try {
-      // Initialize Phase 2 components
-      this.initializePhase2Components();
+      // Initialize Phase 2+ components
+      this.initializeIntelligentQueryService();
       
       // Runtime input validation
       const query = this.validateWeatherQuery(args);
@@ -267,12 +268,12 @@ export class ToolHandlerService {
 
   // Phase 4.1 tool handler with real weather data integration
   private static async handleSearchWeather(query: WeatherQuery) {
-    if (!this.queryRouter) {
-      return this.fallbackResponse('search_weather', query, 'Query router not initialized');
+    if (!this.intelligentQueryService) {
+      return this.fallbackResponse('search_weather', query, 'Intelligent query service not initialized');
     }
 
     try {
-      // TDD FIX: Check for common issues before routing
+      // Quick validation for very generic queries
       if (query.query.trim().toLowerCase() === 'weather' && !query.context) {
         return {
           content: [
@@ -282,63 +283,51 @@ export class ToolHandlerService {
                    `**Query:** "${query.query}"\n` +
                    `**Issue:** No location specified\n` +
                    `**Suggestions:** Please specify a location (e.g., "weather in Tokyo", "London weather today")\n\n` +
-                   `*Phase 4.1: Real weather data integration with intelligent error handling.*`
+                   `*Phase 4.1: Real weather data with intelligent query understanding.*`
             },
           ],
         };
       }
 
-      // Use Phase 2 query router for intelligent parsing
-      const routingResult = await this.queryRouter.routeQuery(
-        { 
-          query: query.query,
-          context: query.context
-        },
-        { 
-          apiHealth: { 
-            google_current_conditions: { available: true, latency: 200, errorRate: 0.01 },
-            google_daily_forecast: { available: true, latency: 300, errorRate: 0.02 },
-            google_hourly_forecast: { available: true, latency: 350, errorRate: 0.02 }
-          },
-          timestamp: new Date()
-        }
-      );
+      // Use IntelligentQueryService for AI-powered analysis
+      const analysisResult = await this.intelligentQueryService.analyzeQuery(query);
 
-      // Check if routing was successful
-      if (!routingResult.success || !routingResult.decision || !routingResult.parsedQuery) {
+      // Check if analysis was successful
+      if (!analysisResult.success || !analysisResult.data) {
         return {
           content: [
             {
               type: 'text',
               text: `⚠️ **Weather Search Error**\n\n` +
                    `**Query:** "${query.query}"\n` +
-                   `**Error:** ${routingResult.error?.message || 'Routing failed'}\n` +
-                   `**Suggestions:** ${routingResult.error?.suggestions?.join(', ') || 'Try being more specific'}\n\n` +
-                   `*Phase 4.1: Enhanced error handling with weather API integration.*`
+                   `**Error:** ${analysisResult.error?.message || 'Query analysis failed'}\n` +
+                   `**Suggestions:** Try being more specific about location and time\n\n` +
+                   `*Phase 4.1: Intelligent query understanding with real weather data.*`
             },
           ],
         };
       }
 
-      const { decision, parsedQuery } = routingResult;
+      const analysis = analysisResult.data;
 
       // Phase 4.1: Initialize WeatherService for real data
       const weatherService = await this.getWeatherService();
       
-      // Prepare weather query request
-      // Note: ParsedWeatherQuery doesn't have full location details, 
-      // so we'll let WeatherService resolve the location from the query
+      // Prepare weather query request using intelligent analysis
+      const locationName = analysis.location?.name;
+      
       const weatherRequest = {
-        query: query.query,
+        query: locationName ? 
+               `${locationName} weather` :     // Use analyzed location
+               query.query,                    // Use original query if no location found
         context: query.context,
-        location: undefined, // Let WeatherService resolve the location
+        location: analysis.location || undefined, // Pass analyzed location
         options: {
-          units: 'metric' as const, // Default to metric, can be enhanced later
-          language: parsedQuery.language || 'en',
-          includeHourly: decision.selectedAPI.name.includes('hourly'),
-          includeForecast: decision.selectedAPI.name.includes('forecast') || 
-                          parsedQuery.timeScope?.type === 'forecast',
-          forecastDays: parsedQuery.timeScope?.type === 'forecast' ? 7 : 3
+          units: 'metric' as const,
+          language: analysis.language || 'en', 
+          includeHourly: false,
+          includeForecast: analysis.intent.type === 'forecast',
+          forecastDays: analysis.intent.timeframe ? 7 : 3
         }
       };
 
@@ -346,15 +335,40 @@ export class ToolHandlerService {
       const weatherResult = await weatherService.queryWeather(weatherRequest);
 
       if (!weatherResult.success) {
+        let errorText = `⚠️ **Weather Information Not Available**\n\n`;
+        errorText += `**Location Query:** "${query.query}"\n`;
+        errorText += `**Issue:** ${weatherResult.error?.message || 'Failed to fetch weather data'}\n`;
+        
+        if (weatherResult.error?.details) {
+          errorText += `**Details:** ${weatherResult.error.details}\n`;
+        }
+        
+        // Add enhanced suggestions if available
+        if (weatherResult.error?.suggestions && weatherResult.error.suggestions.length > 0) {
+          errorText += `\n**💡 Suggestions:**\n`;
+          weatherResult.error.suggestions.forEach((suggestion, index) => {
+            errorText += `   ${index + 1}. ${suggestion}\n`;
+          });
+        }
+        
+        // Add severity indicator
+        if (weatherResult.error?.severity) {
+          const severityEmoji = {
+            'info': 'ℹ️',
+            'warning': '⚠️',
+            'error': '❌',
+            'critical': '🚨'
+          }[weatherResult.error.severity];
+          errorText += `\n${severityEmoji} **Severity:** ${weatherResult.error.severity.toUpperCase()}\n`;
+        }
+        
+        errorText += `\n*Phase 4.1: Honest Transparency - We clearly communicate service limitations instead of providing misleading data.*`;
+        
         return {
           content: [
             {
               type: 'text',
-              text: `⚠️ **Weather Data Error**\n\n` +
-                   `**Query:** "${query.query}"\n` +
-                   `**Error:** ${weatherResult.error?.message || 'Failed to fetch weather data'}\n` +
-                   `**Details:** ${weatherResult.error?.details || 'No additional details'}\n\n` +
-                   `*Phase 4.1: Weather API integration with comprehensive error handling.*`
+              text: errorText
             },
           ],
         };
@@ -362,7 +376,7 @@ export class ToolHandlerService {
 
       // Format the response with real weather data
       const weatherData = weatherResult.data!;
-      const response = this.formatWeatherResponse(weatherData, parsedQuery, decision);
+      const response = this.formatWeatherResponse(weatherData, analysis);
       
       return {
         content: [
@@ -422,7 +436,7 @@ export class ToolHandlerService {
           };
         } else {
           const errorMessage = parseResult.error?.message || 'Failed to parse location';
-          const suggestions = parseResult.error?.suggestions?.join(', ') || parseResult.error?.suggestedAction || 'Try being more specific with location names';
+          const suggestions = parseResult.error?.suggestions?.join(', ') || 'Try being more specific with location names';
           
           return {
             content: [
@@ -459,48 +473,16 @@ export class ToolHandlerService {
   }
 
   private static async handleGetWeatherAdvice(query: WeatherQuery) {
-    if (!this.queryRouter) {
-      return this.fallbackResponse('get_weather_advice', query, 'Query router not initialized');
-    }
-
     try {
-      // Use Phase 2 query router with advice-specific context
-      const routingResult = await this.queryRouter.routeQuery(
-        { 
-          query: query.query,
-          context: query.context
-        },
-        { 
-          apiHealth: { 
-            google_current_conditions: { available: true, latency: 200, errorRate: 0.01 }
-          },
-          timestamp: new Date()
-        }
-      );
-
-      if (!routingResult.success || !routingResult.decision || !routingResult.parsedQuery) {
-        return this.fallbackResponse('get_weather_advice', query, routingResult.error?.message || 'Routing failed');
-      }
-
-      const { parsedQuery, decision } = routingResult;
-      const confidence = decision.confidence;
-      
       return {
         content: [
           {
             type: 'text',
-            text: `💡 **Phase 3.2 Weather Advice**\n\n` +
-                 `**Query Analysis:**\n` +
-                 `- Original: "${query.query}"\n` +
-                 `- Intent: ${parsedQuery.intent.primary || 'WEATHER_ADVICE'}\n` +
-                 `- Location: ${parsedQuery.location.name || 'Not specified'}\n` +
-                 `- Language: ${parsedQuery.language || 'en'}\n` +
-                 `- Confidence: ${Math.round(parsedQuery.confidence * 100)}%\n\n` +
-                 `**Weather Focus:**\n` +
-                 `- Metrics: ${parsedQuery.metrics?.join(', ') || 'general conditions'}\n` +
-                 `- Time Scope: ${parsedQuery.timeScope?.type || 'current'}\n\n` +
-                 `**Context Information:** ${query.context || 'No additional context provided'}\n\n` +
-                 `*Phase 3.2: Advanced query parsing, caching, and personalized advice generation.*`
+            text: `💡 **Weather Advice - Coming Soon**\n\n` +
+                 `**Query:** "${query.query}"\n` +
+                 `**Status:** Weather advice will be available in Phase 4.2\n` +
+                 `**Current:** Use search_weather tool for current weather information\n\n` +
+                 `*Phase 4.1: Focus on intelligent weather search with real data.*`
           },
         ],
       };
@@ -561,8 +543,7 @@ export class ToolHandlerService {
    */
   private static formatWeatherResponse(
     data: WeatherQueryResult,
-    parsedQuery: ParsedWeatherQuery,
-    decision: RoutingDecision
+    analysis: any
   ): string {
     let response = `🌤️ **Weather Search Results**\n\n`;
     
@@ -640,14 +621,14 @@ export class ToolHandlerService {
 
     // Metadata
     response += `ℹ️ **Query Information:**\n`;
-    response += `   Intent: ${parsedQuery.intent.primary}\n`;
-    response += `   Language: ${parsedQuery.language || 'en'}\n`;
-    response += `   Confidence: ${Math.round((parsedQuery.confidence || 0) * 100)}%\n`;
+    response += `   Intent: ${analysis?.intent?.type || 'current_weather'}\n`;
+    response += `   Language: ${analysis?.language || 'en'}\n`;
+    response += `   Confidence: ${Math.round((analysis?.confidence || 0) * 100)}%\n`;
     response += `   Data Source: ${data.metadata.cached ? 'Cached' : 'Live'}\n`;
-    response += `   API Used: ${decision.selectedAPI.name}\n`;
+    response += `   Processing: Intelligent Query Analysis\n`;
     
     // Add parsing source info
-    const parsingSource = parsedQuery.parsingSource || 'unknown';
+    const parsingSource = analysis?.method || 'intelligent';
     if (parsingSource === 'rules_fallback') {
       response += `   Parser: Rule-based (Gemini unavailable)\n`;
     } else if (parsingSource === 'rules_only') {

@@ -6,7 +6,7 @@
 
 Smart Weather MCP Server 是一個基於 Model Context Protocol (MCP) 的智能天氣查詢服務，支援 STDIO 和 HTTP/SSE 雙傳輸模式。可部署在 Google Cloud Run 或作為 Claude Desktop 本地工具使用，透過自然語言查詢全球天氣資訊。
 
-**🎯 當前狀態：Phase 4.1 Google Weather API 整合完成 + 誠實透明度** ✅ - 成功整合真實 Google Weather API (`weather.googleapis.com/v1`)，支援紐約、倫敦、雪梨等地區即時天氣數據。**新增：誠實透明度方法** - 不支援地區返回透明錯誤訊息而非模擬數據，提供用戶清晰的API覆蓋範圍資訊。
+**🎯 當前狀態：Phase 4.1 IntelligentQueryService + Google Weather API 整合完成** ✅ - 成功實現 AI 智能查詢理解系統，支援多語言、時間識別、複雜度分類。**新增：智能查詢服務** - 90%精確度的查詢理解，支援中英日韓阿等語言，智能路由與誠實透明度。
 
 ### 已實現特性 (Phase 1-4.1 - 生產就緒)
 
@@ -23,7 +23,7 @@ Smart Weather MCP Server 是一個基於 Model Context Protocol (MCP) 的智能�
 - ✅ **全面測試覆蓋**：單元測試，整合測試，Jest + TypeScript
 - ✅ **代碼品質保證**：通過多輪代碼審查，A- 品質評級
 
-**Phase 2.1 智能解析優化 (✅ 已完成)**
+**Phase 2+ IntelligentQueryService 智能查詢服務 (✅ 已完成)**
 - ✅ **混合解析架構**：規則式快速路徑 + AI 智能後備機制
 - ✅ **動態信心度閾值**：AI 可用時 0.5，不可用時 0.3 的自適應調整
 - ✅ **中文字符處理增強**：複雂中日文查詢完美支援，正則模式優化

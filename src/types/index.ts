@@ -79,5 +79,17 @@ export type {
   QueryRouterConfig
 } from './routing.js';
 
+export type {
+  QueryAnalysis,
+  QueryIntent,
+  QueryContext,
+  QueryComplexity,
+  IntelligentQueryConfig,
+  QueryProcessingMethod,
+  SupportedLanguage,
+  LanguageDetectionResult,
+  LocationExtractionResult
+} from './intelligent-query.js';
+
 // Export enums
 export { IntentType } from './parser.js';
