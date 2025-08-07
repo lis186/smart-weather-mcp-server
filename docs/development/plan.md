@@ -315,12 +315,15 @@ async parseQuery(query) {
 
 **目標**：完成生產環境部署準備與效能最佳化
 
-#### 5.1 容器化和 CI/CD 🚀
+#### 5.1 容器化和 CI/CD 🚀 ✅ **PHASE 5.1 完成** (2025-08-07)
 
-- [ ] 完善 Dockerfile 配置
-- [ ] 設置 GitHub Actions 部署
-- [ ] 配置 Cloud Build 腳本
-- [ ] 效能調優與監控
+- [x] **多階段 Dockerfile 優化** - 建置階段分離，生產映像最小化，直接執行 node
+- [x] **GitHub Actions CI/CD** - 完整 workflow：test → build → push → deploy
+- [x] **Workload Identity Federation** - 安全的 GitHub → GCP 認證，無需 JSON 密鑰
+- [x] **Service Account 權限設定** - 最小權限原則，支援 Cloud Run + Artifact Registry
+- [x] **Secret Manager 整合** - API 密鑰安全儲存與 Cloud Run 注入
+- [x] **自動化部署腳本** - 一鍵設定與部署工具集
+- [x] **完整部署文件** - 詳細操作指南與故障排除
 
 #### 5.2 生產環境測試 🧪
 
@@ -501,9 +504,43 @@ async parseQuery(query) {
 - [x] **MCP 設計哲學合規** - 3 工具、統一參數、用戶中心命名、可行動建議
 
 **Phase 4.3+ 待完成**：
-- [ ] Cloud Run 生產環境最終部署測試  
 - [ ] 監控和告警機制建立
 - [ ] 效能最佳化與快取調優
+
+### 階段 5: Cloud Run 部署與 CI/CD ✅ 已完成 (2025-08-07)
+
+**目標**：建立完整的容器化部署和 CI/CD 流程
+
+**實際成果**：成功部署到 Google Cloud Run，實現 SSE 支援和 Claude Desktop 整合
+
+#### 5.1 容器化與基礎設施 ✅
+- [x] **Docker 容器化**: 多階段建置，映像最小化 
+- [x] **架構修正**: 解決 ARM64 → x86_64 架構不匹配問題
+- [x] **GCP 環境設定**: Project ID striped-history-467517-m3, Region asia-east1
+- [x] **Artifact Registry**: 映像儲存庫建立與管理
+- [x] **Service Account**: GitHub Actions 部署權限設定
+- [x] **Workload Identity**: 安全的 GitHub → GCP 認證
+- [x] **Secret Manager**: API Keys 安全儲存與自動載入
+
+#### 5.2 SSE 傳輸實作 ✅
+- [x] **StreamableHTTPServerTransport**: 替換 SSEServerTransport
+- [x] **無狀態架構**: Stateless mode 簡化 session 管理
+- [x] **統一端點**: `/sse` 處理 GET (SSE stream) 和 POST (messages)
+- [x] **mcp-remote 相容性**: Claude Desktop 透過 mcp-remote 成功連接
+- [x] **n8n 整合支援**: SSE streaming 正常運作
+
+**部署成果**：
+- 🌐 **Production URL**: https://smart-weather-mcp-server-891745610397.asia-east1.run.app
+- ✅ **健康檢查**: `/health` 端點正常
+- ✅ **MCP 工具**: 3 個工具全部可用
+- ✅ **Claude Desktop**: 透過 mcp-remote 成功整合
+- ✅ **測試覆蓋**: 新增 SSE transport 整合測試
+
+**Phase 5.1 學習總結**：
+- SSE 實作需使用 StreamableHTTPServerTransport 而非 SSEServerTransport
+- Stateless mode 更適合 Cloud Run 的無狀態架構
+- mcp-remote 需要正確的 HTTP transport 實作才能運作
+- Docker 建置需指定 `--platform linux/amd64` 避免架構問題
 
 ---
 

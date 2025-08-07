@@ -120,8 +120,8 @@ graph TB
 | **Unified Server** | 傳輸模式切換 | ✅ 已完成 | 命令行參數解析 |
 | **Express HTTP Server** | HTTP 服務和路由 | ✅ 已完成 | Express.js 4.18+ |
 | **Health Check Endpoint** | Cloud Run 健康檢查 | ✅ 已完成 | HTTP GET /health |
-| **SSE Transport Handler** | MCP 協議通信 | ✅ 已完成 | MCP TypeScript SDK |
-| **STDIO Transport Handler** | Claude Desktop 支援 | ✅ 已完成 | MCP TypeScript SDK |
+| **StreamableHTTP Transport** | MCP 協議通信 (SSE+POST) | ✅ 已完成 | StreamableHTTPServerTransport |
+| **STDIO Transport Handler** | Claude Desktop 支援 | ✅ 已完成 | StdioServerTransport |
 | **統一工具處理器** | 3個工具的統一入口 | ✅ 已完成 | TypeScript 類別 |
 | **Secret Manager 客戶端** | 密鑰管理 | ✅ 已完成 | @google-cloud/secret-manager |
 | **記憶體快取** | 基礎快取框架 | ✅ 已完成 | JavaScript Map |

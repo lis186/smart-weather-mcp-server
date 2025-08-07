@@ -160,3 +160,46 @@ When working in Claude Desktop with Phase 4.1, you'll have confirmed:
 - **📊 Metadata Display**: Shows data source, confidence, API used
 
 This confirms Phase 4.1 has successfully integrated **real weather data** into the MCP tool!
+
+## 🚀 使用 Cloud Run 部署版本 (Phase 5.1+ ✅ WORKING)
+
+Phase 5.1 完成後，您可以選擇使用已部署到 Google Cloud Run 的版本，無需本地環境設定。
+
+### Cloud Run 版本配置
+
+在 Claude Desktop 配置文件中添加：
+
+```json
+{
+  "mcpServers": {
+    "smart-weather-cloud": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://smart-weather-mcp-server-891745610397.asia-east1.run.app/sse"
+      ]
+    }
+  }
+}
+```
+
+### Cloud Run 版本優勢
+
+- ✅ **無需本地環境** - 無需安裝 Node.js 或建置專案
+- ✅ **自動更新** - 透過 CI/CD 自動部署最新版本
+- ✅ **高可用性** - Google Cloud Run 99.95% SLA
+- ✅ **完整 Secret Manager** - API Keys 安全管理
+- ✅ **生產級效能** - 最佳化的容器環境
+
+### 本地 vs Cloud Run 版本選擇
+
+| 特性 | 本地版本 | Cloud Run 版本 |
+|------|----------|----------------|
+| 設定複雜度 | 需要本地環境設定 | 僅需配置檔案 |
+| API Keys | 需要本地 .env 檔案 | 自動從 Secret Manager 載入 |
+| 更新方式 | 手動 git pull | 自動 CI/CD 部署 |
+| 網路需求 | 本地運行 | 需要網際網路連線 |
+| 適用場景 | 開發測試 | 生產使用 |
+
+**建議**: 日常使用選擇 **Cloud Run 版本**，開發測試時使用本地版本。

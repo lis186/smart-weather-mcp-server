@@ -1,14 +1,14 @@
 import express, { Request, Response } from 'express';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { SmartWeatherMCPServer } from './mcp-server.js';
 import { ServerConfig } from '../types/index.js';
 import { logger } from '../services/logger.js';
 
-interface SSEConnection {
+interface MCPConnection {
   id: string;
   server: Server;
-  transport: SSEServerTransport;
+  transport: StreamableHTTPServerTransport;
   createdAt: Date;
   lastActivity: Date;
 }
@@ -17,8 +17,10 @@ export class ExpressServer {
   private app: express.Application;
   private config: ServerConfig;
   private mcpServer: SmartWeatherMCPServer;
-  private sseConnections: Map<string, SSEConnection> = new Map();
+  private mcpConnections: Map<string, MCPConnection> = new Map();
   private connectionCleanupInterval: NodeJS.Timeout | undefined;
+  private globalTransport: StreamableHTTPServerTransport | undefined;
+  private globalServer: Server | undefined;
 
   constructor(config: ServerConfig) {
     this.app = express();
@@ -43,6 +45,37 @@ export class ExpressServer {
         next();
       });
     }
+  }
+
+  private async setupMCPTransport(): Promise<void> {
+    // Create a single StreamableHTTP transport for all connections
+    // Using stateless mode for simplicity (no session management)
+    this.globalTransport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined, // Stateless mode
+      enableJsonResponse: true,
+      enableDnsRebindingProtection: false,
+    });
+
+    // Create a single MCP server instance
+    this.globalServer = new Server(
+      {
+        name: 'smart-weather-mcp-server',
+        version: '1.0.0',
+      },
+      {
+        capabilities: {
+          tools: {},
+        },
+      }
+    );
+
+    // Set up handlers
+    await this.setupMCPServerHandlers(this.globalServer);
+
+    // Connect the transport to the server
+    await this.globalServer.connect(this.globalTransport);
+    
+    logger.info('StreamableHTTP transport initialized in stateless mode');
   }
 
   private setupRoutes(): void {
@@ -75,74 +108,22 @@ export class ExpressServer {
       });
     });
 
-    // SSE endpoint for MCP client connections
-    this.app.get('/sse', async (req: Request, res: Response) => {
+    // Unified SSE endpoint for both GET (SSE stream) and POST (messages)
+    this.app.all('/sse', async (req: Request, res: Response) => {
       try {
-        const connectionId = this.generateConnectionId();
-        logger.sseConnectionEstablished(connectionId, this.sseConnections.size + 1);
-        
-        // Check connection limits
-        if (this.sseConnections.size >= 100) { // Limit concurrent connections
-          res.status(503).json({
-            error: 'Server busy',
-            details: 'Maximum number of concurrent connections reached'
-          });
-          return;
+        if (!this.globalTransport) {
+          await this.setupMCPTransport();
         }
 
-        // Set up SSE headers
-        res.writeHead(200, {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Cache-Control',
-        });
-
-        // Create SSE transport
-        const transport = new SSEServerTransport('/sse', res);
-        
-        // Reuse MCP server instance or create new one (connection pooling)
-        const server = this.createOrReuseMCPServer(connectionId);
-
-        // Set up the same handlers as the main MCP server
-        await this.setupMCPServerHandlers(server);
-        
-        // Connect the transport
-        await server.connect(transport);
-        
-        // Store connection for management
-        const connection: SSEConnection = {
-          id: connectionId,
-          server,
-          transport,
-          createdAt: new Date(),
-          lastActivity: new Date()
-        };
-        this.sseConnections.set(connectionId, connection);
-        
-        logger.info('MCP server connected via SSE', {
-          connectionId,
-          activeConnections: this.sseConnections.size
-        });
-
-        // Handle client disconnect
-        req.on('close', () => {
-          logger.sseConnectionClosed(connectionId, this.sseConnections.size - 1);
-          this.cleanupConnection(connectionId);
-        });
-
-        // Handle connection errors
-        req.on('error', (error) => {
-          logger.error('SSE connection error', { connectionId }, error);
-          this.cleanupConnection(connectionId);
-        });
+        // Let the StreamableHTTP transport handle the request
+        // It will automatically handle GET for SSE and POST for messages
+        await this.globalTransport!.handleRequest(req, res, req.body);
 
       } catch (error) {
-        logger.error('Failed to establish SSE connection', {}, error instanceof Error ? error : new Error(String(error)));
+        logger.error('Failed to handle MCP request', { method: req.method }, error instanceof Error ? error : new Error(String(error)));
         if (!res.headersSent) {
           res.status(500).json({
-            error: 'Failed to establish SSE connection',
+            error: 'Failed to handle MCP request',
             details: this.config.environment === 'development' 
               ? error instanceof Error ? error.message : String(error)
               : 'Internal server error',
@@ -176,60 +157,13 @@ export class ExpressServer {
     ToolHandlerService.setupServerHandlers(server);
   }
 
-  private generateConnectionId(): string {
-    return `sse-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-  }
-
-  private createOrReuseMCPServer(connectionId: string): Server {
-    // For now, create a new server for each connection
-    // In the future, this could implement actual connection pooling/reuse
-    return new Server(
-      {
-        name: 'smart-weather-mcp-server',
-        version: '1.0.0',
-      },
-      {
-        capabilities: {
-          tools: {},
-        },
-      }
-    );
-  }
-
-  private cleanupConnection(connectionId: string): void {
-    const connection = this.sseConnections.get(connectionId);
-    if (connection) {
-      try {
-        // Close the server connection if possible
-        // Note: MCP SDK might not have explicit close method
-        this.sseConnections.delete(connectionId);
-        logger.connectionCleanup(connectionId, 'manual cleanup');
-      } catch (error) {
-        logger.error('Error during connection cleanup', { connectionId }, error instanceof Error ? error : new Error(String(error)));
-      }
-    }
-  }
-
   private startConnectionCleanup(): void {
-    // Clean up stale connections every 5 minutes
-    this.connectionCleanupInterval = setInterval(() => {
-      const now = new Date();
-      const staleThreshold = 30 * 60 * 1000; // 30 minutes
-
-      for (const [connectionId, connection] of this.sseConnections.entries()) {
-        const timeSinceLastActivity = now.getTime() - connection.lastActivity.getTime();
-        if (timeSinceLastActivity > staleThreshold) {
-          logger.connectionCleanup(connectionId, `stale connection (${timeSinceLastActivity}ms inactive)`);
-          this.cleanupConnection(connectionId);
-        }
-      }
-    }, 5 * 60 * 1000); // Check every 5 minutes
+    // No longer needed with stateless StreamableHTTP transport
+    // Connection management is handled per-request
   }
 
   private stopConnectionCleanup(): void {
-    if (this.connectionCleanupInterval) {
-      clearInterval(this.connectionCleanupInterval);
-    }
+    // No longer needed with stateless StreamableHTTP transport
   }
 
   async start(): Promise<void> {
@@ -241,7 +175,10 @@ export class ExpressServer {
 
       server.on('error', (error) => {
         logger.error('Express server startup error', { host: this.config.host, port: this.config.port }, error);
-        process.exit(1);
+        // Don't exit in test environment - let the test handle the error
+        if (process.env.NODE_ENV !== 'test') {
+          process.exit(1);
+        }
       });
     });
   }
