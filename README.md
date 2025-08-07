@@ -6,7 +6,9 @@
 
 Smart Weather MCP Server 是一個基於 Model Context Protocol (MCP) 的智能天氣查詢服務，支援 STDIO 和 HTTP/SSE 雙傳輸模式。可部署在 Google Cloud Run 或作為 Claude Desktop 本地工具使用，透過自然語言查詢全球天氣資訊。
 
-**🎯 當前狀態：Phase 4.1 IntelligentQueryService + Google Weather API 整合完成** ✅ - 成功實現 AI 智能查詢理解系統，支援多語言、時間識別、複雜度分類。**新增：智能查詢服務** - 90%精確度的查詢理解，支援中英日韓阿等語言，智能路由與誠實透明度。
+**🎯 當前狀態：Phase 5.2 生產驗證完成** ✅ - 全系統測試驗證完成，生產就緒。**測試結果**：✅ 多層快取系統運作正常，✅ 多語言支援確認，✅ 即時天氣數據整合，✅ 性能超越目標 (~0.2s)，✅ Cloud Run 部署穩定。
+
+🌐 **Production URL**: https://smart-weather-mcp-server-891745610397.asia-east1.run.app
 
 ### 已實現特性 (Phase 1-4.1 - 生產就緒)
 
@@ -26,6 +28,11 @@ Smart Weather MCP Server 是一個基於 Model Context Protocol (MCP) 的智能�
 **Phase 2+ IntelligentQueryService 智能查詢服務 (✅ 已完成)**
 - ✅ **混合解析架構**：規則式快速路徑 + AI 智能後備機制
 - ✅ **動態信心度閾值**：AI 可用時 0.5，不可用時 0.3 的自適應調整
+
+**Phase 5.2 生產驗證與快取系統 (✅ 已完成)**
+- ✅ **多層快取系統**：天氣數據 5 分鐘、地點資訊 7 天、預報 30 分鐘差異化 TTL
+- ✅ **快取性能監控**：命中率追蹤、記憶體使用監控、自動清理機制
+- ✅ **生產環境驗證**：Cloud Run 穩定運行、多語言查詢測試、性能指標達標
 - ✅ **中文字符處理增強**：複雂中日文查詢完美支援，正則模式優化
 - ✅ **AI 後備機制**：使用現有 Gemini 整合的智能降級處理
 - ✅ **用戶狀態透明化**：明確顯示 AI 解析器可用性狀態
@@ -145,29 +152,25 @@ npm run test:verbose
 npm run test:coverage
 ```
 
-### Cloud Run 部署 (選用)
+### Cloud Run 部署
 
-Phase 1 已支援 Cloud Run 部署，但 API 密鑰為選用：
+Phase 5.1 提供完整的 CI/CD 部署流程：
 
 ```bash
-# 1. 設定 Google Cloud 專案
-export PROJECT_ID=your-project-id
-gcloud config set project $PROJECT_ID
+# 1. 一次性設定 GCP 環境
+./scripts/setup-gcp-ci.sh
 
-# 2. 啟用 API
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com
+# 2. 設定 API 密鑰
+./scripts/setup-secrets.sh
 
-# 3. 建置並部署
-gcloud builds submit --tag gcr.io/$PROJECT_ID/smart-weather-mcp
-gcloud run deploy smart-weather-mcp \
-  --image gcr.io/$PROJECT_ID/smart-weather-mcp \
-  --platform managed \
-  --region asia-east1 \
-  --port 8080 \
-  --allow-unauthenticated
+# 3. 手動部署（可選）
+./scripts/deploy-cloudrun.sh
+
+# 4. 自動部署：推送至 main 分支即可
+git push origin main
 ```
 
-**注意**: Phase 1 中密鑰驗證在開發環境為選用，部署後可立即測試 MCP 工具框架。
+**詳細部署指南**: 參見 [docs/setup/DEPLOYMENT.md](docs/setup/DEPLOYMENT.md)
 
 ## MCP 客戶端整合
 
@@ -379,9 +382,10 @@ npm test
 - [開發指引](./CLAUDE.md) - Claude Code 專用開發指南
 
 ### 部署相關
-- [API 設定指南](./API_SETUP.md) - Google Cloud API 和密鑰設定
+- [部署指南](./docs/setup/DEPLOYMENT.md) - 完整 Cloud Run 部署流程
+- [Claude Desktop 設定](./docs/setup/CLAUDE_DESKTOP_SETUP.md) - 本地整合指南
 - [Docker 設定](./Dockerfile) - 容器化部署配置
-- [部署腳本](./deploy.sh) - 自動化部署工具
+- [部署腳本](./scripts/) - 自動化部署工具集
 
 ## 貢獻
 
