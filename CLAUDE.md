@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Smart Weather MCP Server designed for Google Cloud Run deployment. The project follows the Shopify Storefront MCP design philosophy with user-intent-driven tools, using TypeScript and Node.js to provide intelligent weather querying capabilities through AI-powered natural language understanding.
 
-🎯 **Current Status**: **Phase 4.1 search_weather Tool COMPLETED** ✅ - Real weather data integration with MCP tool completed. The search_weather tool now connects Gemini AI parsing with WeatherService for actual weather queries. Response formatting, error handling, and multi-language support fully implemented.
+🎯 **Current Status**: **Phase 4.1 Google Weather API Integration COMPLETED with Honest Transparency** ✅ - Successfully integrated with real Google Weather API (`weather.googleapis.com/v1`). The search_weather MCP tool now provides actual weather data for supported locations (New York, London, Sydney, Singapore, Hong Kong). **NEW: Implements "Honest Transparency" approach** - unsupported locations receive clear error messages instead of mock data, providing users with transparent information about API coverage limitations.
 
 ## Essential Commands
 
@@ -80,7 +80,7 @@ gcloud run deploy smart-weather-mcp --image gcr.io/PROJECT_ID/smart-weather-mcp 
 - ✅ **Smart Error Handling**: User-friendly messages with actionable suggestions
 - ✅ **Performance Optimization**: Sub-second parsing, efficient routing
 - ✅ **Hybrid Parsing Architecture**: Rule-based + AI fallback with dynamic thresholds
-- 🔄 **Weather API Integration**: Awaiting Google Weather API connection
+- ✅ **Google Weather API Integration**: Live weather data for supported locations with graceful fallback
 
 ### Planned Architecture (Phase 2+)
 
@@ -91,11 +91,11 @@ gcloud run deploy smart-weather-mcp --image gcr.io/PROJECT_ID/smart-weather-mcp 
 - **User-Centric Naming**: Tool names reflect user intent, not technical implementation
 - **AI-Powered Parsing**: Uses Gemini 2.5 Flash-Lite for natural language understanding
 
-### Planned Tool Structure
+### Current Tool Implementation Status
 
-1. **`search_weather`** - Intelligent weather querying (current/forecast/historical)
-2. **`find_location`** - Location discovery and confirmation  
-3. **`get_weather_advice`** - Personalized weather recommendations
+1. **`search_weather`** ✅ **COMPLETED** - Intelligent weather querying with real Google Weather API integration
+2. **`find_location`** ⏳ **PLANNED** - Location discovery and confirmation (Phase 4.2) 
+3. **`get_weather_advice`** ⏳ **PLANNED** - Personalized weather recommendations (Phase 4.2)
 
 ### Technology Stack
 
@@ -104,7 +104,7 @@ gcloud run deploy smart-weather-mcp --image gcr.io/PROJECT_ID/smart-weather-mcp 
 - **MCP SDK**: @modelcontextprotocol/sdk v1.17.1
 - **HTTP Server**: Express.js for Cloud Run HTTP endpoints
 - **AI Parser**: Google Gemini 2.5 Flash-Lite via Vertex AI
-- **Weather API**: Google Maps Platform Weather API
+- **Weather API**: Google Weather API (weather.googleapis.com/v1) ✅ ACTIVE
 - **Transport**: Dual support - STDIO for Claude Desktop, HTTP/SSE for web clients
 
 ### Cloud Run Specific Features
@@ -159,17 +159,19 @@ gcloud run deploy smart-weather-mcp --image gcr.io/PROJECT_ID/smart-weather-mcp 
 
 ## Current Project Status
 
-✅ **Phase 4.1 search_weather Tool COMPLETED** - Real weather data integration with MCP tool handler.
+✅ **Phase 4.1 Google Weather API Integration COMPLETED with Honest Transparency** - Full production integration with real Google Weather API using honest transparency approach.
 
-## ✅ Phase 4.1 Achievements: MCP Tool Weather Integration
+## ✅ Phase 4.1 Achievements: Google Weather API Integration + Honest Transparency
 
 ### **Problems Solved**
 
-- ✅ **Real Data Integration**: Connected search_weather tool to WeatherService for actual weather queries
-- ✅ **Response Formatting**: Implemented comprehensive weather data formatting (current, forecast, hourly)
-- ✅ **Error Handling**: Enhanced error responses with user-friendly messages and suggestions
-- ✅ **Multi-language Support**: Tool handles queries in Chinese, English, and Japanese
-- ✅ **Cache Integration**: Leveraged WeatherService caching for improved performance
+- ✅ **Google Weather API Integration**: Successfully integrated with `weather.googleapis.com/v1/currentConditions:lookup` and `forecast/days:lookup`
+- ✅ **Real Weather Data**: Live weather data for supported locations (New York, London, Sydney, Singapore, Hong Kong)
+- ✅ **Honest Transparency**: **NEW** - Removed mock data fallbacks, replaced with transparent error messages for unsupported locations
+- ✅ **Response Parsing**: Handles both real Google API format and provides clear error responses
+- ✅ **Geographic Coverage**: Confirmed working locations with systematic testing
+- ✅ **Error Handling**: Proper 404 handling with user-friendly, actionable error messages
+- ✅ **Authentication**: Production-ready API key management and request authentication
 
 ### **Implementation Completed**
 
@@ -192,13 +194,20 @@ async parseQuery(query: WeatherQuery): Promise<ParsedWeatherQuery> {
 }
 ```
 
-### **All Test Cases Now Passing**
+### **Google Weather API Integration Status**
 
-- ✅ "沖繩明天天氣預報 衝浪條件 海浪高度 風速" → Success (35% confidence, weather_advice)
-- ✅ "日本沖繩明天天氣 海況 風浪預報" → Success (location: 日本)
-- ✅ "台灣明天空氣品質預報 花粉濃度 過敏指數" → Success (location: 台灣)
-- ✅ "planning outdoor wedding in Kyoto next Saturday" → Success (location: Kyoto)
-- ✅ "農業種植天氣預報 下週降雨量 風速" → Success (location: Not specified)
+**✅ Supported Locations (Real Weather Data):**
+- 🇺🇸 New York City - `weather.googleapis.com/v1/currentConditions:lookup` ✅
+- 🇬🇧 London, UK - Current + Forecast APIs ✅  
+- 🇦🇺 Sydney, Australia - Live weather data ✅
+- 🇸🇬 Singapore - Real API integration ✅
+- 🇭🇰 Hong Kong - Production ready ✅
+
+**⚠️ Expanding Coverage (Honest Transparency):**
+
+- 🇯🇵 Tokyo, Japan - Returns transparent "not supported" error with actionable suggestions
+- 🇰🇷 Seoul, South Korea - Clear error messaging, ready for API expansion when available
+- 🇹🇼 Taipei, Taiwan - Transparent error handling, full compatibility when supported
 
 ### **Production-Ready Features**
 

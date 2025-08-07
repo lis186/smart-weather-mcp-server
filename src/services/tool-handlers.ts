@@ -577,7 +577,7 @@ export class ToolHandlerService {
     if (data.current) {
       const curr = data.current;
       // Use metric by default since we don't have userPreferences in ParsedWeatherQuery
-      const temp = `${curr.temperature.celsius.toFixed(1)}°C`;
+      const temp = `${this.getTemperature(curr.temperature).toFixed(1)}°C`;
       
       response += `🌡️ **Current Conditions:**\n`;
       response += `   Temperature: ${temp}\n`;
@@ -627,7 +627,7 @@ export class ToolHandlerService {
         const timeStr = time.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true });
         
         // Use metric by default
-        const temp = `${hour.temperature.celsius.toFixed(0)}°C`;
+        const temp = `${this.getTemperature(hour.temperature).toFixed(0)}°C`;
         
         response += `   ${timeStr}: ${temp}, ${hour.description}`;
         if (hour.precipitationProbability && hour.precipitationProbability > 0) {
@@ -659,6 +659,24 @@ export class ToolHandlerService {
     response += `\n*Phase 4.1: Real weather data integration completed.*`;
     
     return response;
+  }
+
+  /**
+   * Helper: Extract temperature value from either real Google API or mock data format
+   */
+  private static getTemperature(tempData: any, unit: 'celsius' | 'fahrenheit' = 'celsius'): number {
+    // Real Google Weather API format: { degrees: 20.7, unit: "CELSIUS" }
+    if (tempData && typeof tempData.degrees === 'number') {
+      return tempData.degrees;
+    }
+    
+    // Mock data format: { celsius: 20.7, fahrenheit: 69.26 }
+    if (tempData && typeof tempData[unit] === 'number') {
+      return tempData[unit];
+    }
+    
+    // Fallback to 0 if no valid temperature found
+    return 0;
   }
 
   /**

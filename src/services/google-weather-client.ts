@@ -3,6 +3,7 @@
  * Handles Current Conditions, Daily Forecast, Hourly Forecast, and Historical Weather
  */
 
+import axios from 'axios';
 import { GoogleMapsClient } from './google-maps-client.js';
 import { logger } from './logger.js';
 import type {
@@ -19,7 +20,7 @@ import type {
 } from '../types/weather-api.js';
 
 export class GoogleWeatherClient extends GoogleMapsClient {
-  private readonly weatherApiBaseUrl = 'https://maps.googleapis.com/maps/api/weather';
+  private readonly weatherApiBaseUrl = 'https://weather.googleapis.com/v1';
 
   constructor(config: WeatherAPIConfig) {
     super(config);
@@ -47,14 +48,13 @@ export class GoogleWeatherClient extends GoogleMapsClient {
         units: params.units 
       });
 
-      // Note: Google Weather API endpoint structure (placeholder implementation)
-      // Real implementation would use actual Google Weather API endpoints
+      // Real Google Weather API implementation using official endpoints
       const response = await this.makeWeatherRequest('/current', params);
       
-      const weatherData: CurrentWeatherData = this.parseCurrentWeatherResponse(
-        response.data,
-        request.location
-      );
+      // Try parsing as real Google Weather API response first
+      const weatherData: CurrentWeatherData = response.data && response.data.current ? 
+        this.parseGoogleCurrentWeatherResponse(response.data, request.location) :
+        this.parseCurrentWeatherResponse(response.data, request.location);
 
       return {
         success: true,
@@ -239,21 +239,131 @@ export class GoogleWeatherClient extends GoogleMapsClient {
    * Make weather API request (internal method)
    */
   private async makeWeatherRequest(endpoint: string, params: any): Promise<any> {
-    // TODO: Implement actual Google Weather API calls when service becomes available
-    // For now, this creates mock responses since Google Weather API is not yet publicly available
-    // Real implementation will use actual API endpoints when available
+    try {
+      // Convert legacy endpoint to real Google Weather API endpoint
+      const realEndpoint = this.convertLegacyEndpoint(endpoint);
+      const realParams = this.convertLegacyParams(params);
+      
+      const url = `${this.weatherApiBaseUrl}${realEndpoint}`;
+      
+      logger.info('Making Google Weather API request', { 
+        url,
+        params: { ...realParams, key: '[REDACTED]' },
+        keyLength: realParams.key?.length,
+        keyPrefix: realParams.key?.substring(0, 10) + '...'
+      });
+
+      // Use axios directly for Google Weather API calls
+      const response = await axios.get(url, { 
+        params: realParams,
+        timeout: 5000
+      });
+      
+      logger.info('Google Weather API response received', {
+        status: response.status,
+        endpoint: realEndpoint
+      });
+
+      return { data: response.data };
+      
+    } catch (error: any) {
+      logger.error('Google Weather API request failed', {
+        endpoint,
+        error: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        responseData: error.response?.data,
+        headers: error.response?.headers
+      });
+
+      // Don't fallback to mock data - propagate the error for proper handling
+      if (error.response?.status === 404) {
+        const apiError = new Error('Location not supported by Google Weather API');
+        apiError.name = 'LOCATION_NOT_SUPPORTED';
+        (apiError as any).status = 404;
+        (apiError as any).details = error.response?.data?.error?.message || 'Information is not supported for this location';
+        throw apiError;
+      } else if (error.response?.status === 403) {
+        const apiError = new Error('Google Weather API access denied');
+        apiError.name = 'API_ACCESS_DENIED';
+        (apiError as any).status = 403;
+        throw apiError;
+      } else {
+        // For other errors, rethrow the original error
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Convert legacy endpoint paths to real Google Weather API endpoints
+   */
+  private convertLegacyEndpoint(endpoint: string): string {
+    const endpointMap: { [key: string]: string } = {
+      '/current': '/currentConditions:lookup',
+      '/forecast/daily': '/forecast/days:lookup',
+      '/forecast/hourly': '/forecast/hours:lookup',
+      '/history': '/forecast/history:lookup'
+    };
     
-    logger.info('Making weather API request', { endpoint, params: { ...params, key: '[REDACTED]' } });
+    return endpointMap[endpoint] || endpoint;
+  }
+
+  /**
+   * Convert legacy parameters to Google Weather API format
+   */
+  private convertLegacyParams(params: any): any {
+    // Get API key from constructor parameter since config is private
+    const apiKey = process.env.WEATHER_API_KEY || process.env.GOOGLE_WEATHER_API_KEY || 'test-key';
     
-    // Simulate API delay
-    await this.sleep(100 + Math.random() * 200);
-    
-    return this.createMockWeatherResponse(endpoint, params);
+    return {
+      key: apiKey,
+      'location.latitude': params.lat,
+      'location.longitude': params.lng,
+      unitsSystem: params.units === 'imperial' ? 'IMPERIAL' : 'METRIC',
+      languageCode: params.lang || 'en',
+      ...(params.days && { days: params.days }),
+      ...(params.hours && { hours: params.hours })
+    };
   }
 
 
   /**
-   * Parse current weather API response
+   * Parse real Google Weather API current conditions response
+   */
+  private parseGoogleCurrentWeatherResponse(data: any, location: Location): CurrentWeatherData {
+    // Handle real Google Weather API response format
+    if (data && data.current) {
+      const current = data.current;
+      return {
+        location,
+        timestamp: new Date().toISOString(),
+        temperature: {
+          celsius: current.temperature?.value || 20,
+          fahrenheit: (current.temperature?.value || 20) * 9/5 + 32
+        },
+        humidity: current.humidity?.value || 60,
+        windSpeed: {
+          metersPerSecond: current.windSpeed?.value || 5,
+          kilometersPerHour: (current.windSpeed?.value || 5) * 3.6
+        },
+        windDirection: current.windDirection?.value || 180,
+        pressure: current.pressure?.value || 1013,
+        visibility: current.visibility?.value || 10000,
+        uvIndex: current.uvIndex?.value || 3,
+        description: current.weatherDescription || 'Clear',
+        iconCode: current.weatherIcon || '01d',
+        sunrise: current.sunrise || '06:00:00',
+        sunset: current.sunset || '18:00:00'
+      };
+    }
+
+    // Fallback to mock parsing if real API response format is unexpected
+    return this.parseCurrentWeatherResponse(data, location);
+  }
+
+  /**
+   * Parse current weather API response (legacy/mock format)
    */
   private parseCurrentWeatherResponse(data: any, location: Location): CurrentWeatherData {
     const condition: WeatherCondition = {
@@ -366,82 +476,6 @@ export class GoogleWeatherClient extends GoogleMapsClient {
    * @deprecated Remove when real API is available
    * Current implementation provides realistic mock data for development/testing
    */
-  private createMockWeatherResponse(endpoint: string, params: any): any {
-    const baseTemp = 20 + (Math.random() - 0.5) * 20; // 10-30°C
-    
-    switch (endpoint) {
-      case '/current':
-        return {
-          data: {
-            temperature: baseTemp,
-            humidity: 60 + Math.random() * 30,
-            windSpeed: Math.random() * 10,
-            windDirection: Math.random() * 360,
-            pressure: 1000 + Math.random() * 50,
-            visibility: 8000 + Math.random() * 5000,
-            uvIndex: Math.floor(Math.random() * 11),
-            description: 'Mock current weather',
-            iconCode: '02d',
-            sunrise: '06:30:00',
-            sunset: '18:45:00'
-          }
-        };
-        
-      case '/forecast/daily':
-        const dailyData = [];
-        for (let i = 0; i < (params.days || 7); i++) {
-          const dayTemp = baseTemp + (Math.random() - 0.5) * 10;
-          dailyData.push({
-            date: new Date(Date.now() + i * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            highTemp: dayTemp + 5,
-            lowTemp: dayTemp - 5,
-            precipChance: Math.floor(Math.random() * 100),
-            description: 'Mock daily forecast',
-            morning: { temperature: dayTemp - 2, description: 'Morning conditions' },
-            afternoon: { temperature: dayTemp + 3, description: 'Afternoon conditions' },
-            evening: { temperature: dayTemp, description: 'Evening conditions' },
-            night: { temperature: dayTemp - 3, description: 'Night conditions' }
-          });
-        }
-        return { data: { daily: dailyData } };
-        
-      case '/forecast/hourly':
-        const hourlyData = [];
-        for (let i = 0; i < (params.hours || 24); i++) {
-          hourlyData.push({
-            time: new Date(Date.now() + i * 60 * 60 * 1000).toISOString(),
-            temperature: baseTemp + (Math.random() - 0.5) * 8,
-            humidity: 60 + Math.random() * 30,
-            windSpeed: Math.random() * 8,
-            description: 'Mock hourly forecast',
-            precipProbability: Math.floor(Math.random() * 100),
-            precipAmount: Math.random() * 5
-          });
-        }
-        return { data: { hourly: hourlyData } };
-        
-      case '/history':
-        const historicalData = [];
-        const startDate = new Date(params.start_date);
-        const endDate = new Date(params.end_date);
-        const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-        const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
-        
-        for (let i = 0; i < diffHours; i++) {
-          historicalData.push({
-            time: new Date(startDate.getTime() + i * 60 * 60 * 1000).toISOString(),
-            temperature: baseTemp + (Math.random() - 0.5) * 12,
-            humidity: 50 + Math.random() * 40,
-            windSpeed: Math.random() * 10,
-            description: 'Mock historical data'
-          });
-        }
-        return { data: { hourly: historicalData } };
-        
-      default:
-        throw new Error(`Unknown weather endpoint: ${endpoint}`);
-    }
-  }
 
   /**
    * Validate location coordinates

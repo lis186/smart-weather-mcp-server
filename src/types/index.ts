@@ -55,9 +55,10 @@ export interface MCPCallToolRequest {
 // Re-export weather API types for easier imports (avoiding conflicts)
 export type { 
   Location,
-  WeatherData,
-  LocationSearchOptions,
-  LocationConfirmation
+  CurrentWeatherData,
+  DailyForecast,
+  HourlyForecast,
+  WeatherAPIResponse
 } from './weather-api.js';
 
 export type { 

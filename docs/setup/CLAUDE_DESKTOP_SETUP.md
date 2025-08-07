@@ -1,4 +1,4 @@
-# 🖥️ Claude Desktop Integration Guide - Phase 2 Testing
+# 🖥️ Claude Desktop Integration Guide - Phase 4.1 Testing
 
 ## Step-by-Step Setup
 
@@ -13,7 +13,7 @@ npm run build
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
-**Configuration content** (Phase 2 Updated):
+**Configuration content** (Phase 4.1 Updated):
 ```json
 {
   "mcpServers": {
@@ -38,67 +38,77 @@ npm run build
 
 After updating the configuration, **completely quit and restart Claude Desktop** for the changes to take effect.
 
-### 4. Test Phase 2 Features in Claude Desktop
+### 4. Test Phase 4.1 Features in Claude Desktop
 
-Open Claude Desktop and try these **Phase 2** test queries to verify the new natural language processing and routing capabilities:
+Open Claude Desktop and try these **Phase 4.1** test queries to verify the real weather data integration:
 
-#### Test 1: English Current Weather Query
+#### Test 1: Basic Weather Query with Real Data
 ```
 Use the smart-weather MCP server: What is the weather like in Tokyo today?
 ```
 
-**Expected response**: Should use the `search_weather` tool with intelligent parsing showing:
-- Detected location: Tokyo
-- Intent: current weather
-- Language: English
+**Expected Phase 4.1 response**: Should show real weather data including:
+- 📍 Location details with coordinates
+- 🌡️ Current temperature in Celsius
+- Weather conditions (humidity, wind, pressure, UV index)
+- Data source (Cached/Live)
+- Parser type used (Rule-based or Gemini AI)
 
-#### Test 2: Chinese Weather Forecast Query
+#### Test 2: Weather Forecast Query
 ```
-Use the smart-weather server: 明天北京的天氣如何？
-```
-
-**Expected response**: Should use the `search_weather` tool with multilingual parsing showing:
-- Detected location: Beijing (北京)
-- Intent: weather forecast
-- Language: Chinese
-
-#### Test 3: Japanese Weather Query
-```
-Use the smart-weather server: 今日の東京の天気はどうですか？
+Use the smart-weather server: Show me the weather forecast for Taipei for the next 5 days
 ```
 
-**Expected response**: Should demonstrate Japanese language parsing:
-- Detected location: Tokyo (東京)
-- Intent: current weather
-- Language: Japanese
+**Expected Phase 4.1 response**: Should display:
+- 📅 Daily forecast with high/low temperatures
+- Weather descriptions for each day
+- Precipitation chances
+- Formatted date display (day names)
 
-#### Test 4: Weather Advice Intent
+#### Test 3: Chinese Query with Full Integration
 ```
-Ask the smart-weather server: Should I bring an umbrella for a walk in London today?
-```
-
-**Expected response**: Should use the `get_weather_advice` tool with intent classification:
-- Intent: weather advice
-- Weather metrics: precipitation
-- Activity context: outdoor walk
-
-#### Test 5: Location Search Intent
-```
-Use the smart-weather server to find weather stations near Paris, France
+Use the smart-weather server: 台北明天天氣如何？需要帶傘嗎？
 ```
 
-**Expected response**: Should use the `find_location` tool with location search intent.
+**Expected Phase 4.1 response**: Should provide:
+- Weather parsed in Chinese
+- Tomorrow's forecast data
+- Rain probability information
+- All data formatted in metric units
 
-### 5. Phase 2 Verification Signs
+#### Test 4: Hourly Weather Data
+```
+Ask the smart-weather server: Show me hourly weather for London for the next 6 hours
+```
 
-✅ **Phase 2 Success indicators:**
+**Expected Phase 4.1 response**: Should include:
+- ⏰ Hourly forecast section
+- Temperature for each hour
+- Weather conditions per hour
+- Precipitation probability
+
+#### Test 5: Complex Activity Query
+```
+Use the smart-weather server: Is it good weather for surfing in Okinawa this weekend?
+```
+
+**Expected Phase 4.1 response**: Should show:
+- Location identification (Okinawa)
+- Weekend weather data
+- Marine conditions if available
+- Activity-relevant metrics (wind, waves if supported)
+
+### 5. Phase 4.1 Verification Signs
+
+✅ **Phase 4.1 Success indicators:**
 - Claude Desktop shows the MCP server as connected
-- Tool calls show **intelligent parsing results** (not just placeholders)
-- **Multilingual queries** are parsed correctly (English, Chinese, Japanese)
-- **Intent classification** works (current weather, forecast, advice, location search)
-- **Location extraction** from natural language queries
-- Error handling provides **user-friendly suggestions**
-- No connection failures or parsing errors
+- Tool calls return **real weather data** with formatted output
+- **Current conditions** include temperature, humidity, wind, pressure, UV index
+- **Forecast data** shows multiple days with high/low temperatures
+- **Hourly data** displays when requested
+- **Cache status** shows whether data is from cache or live API
+- **Multi-language support** works for Chinese, English, and Japanese queries
+- **Error messages** are informative and suggest corrections
 
 ❌ **Troubleshooting if it doesn't work:**
 
@@ -129,23 +139,24 @@ npm run demo:phase2
 # Should show comprehensive Phase 2 testing results
 ```
 
-## 🎉 What Phase 2 Claude Desktop Testing Proves
+## 🎉 What Phase 4.1 Claude Desktop Testing Proves
 
-When working in Claude Desktop with Phase 2, you'll have confirmed:
+When working in Claude Desktop with Phase 4.1, you'll have confirmed:
 
-1. **✅ Phase 2 MCP Server Integration** - Unified server connects to Claude Desktop
-2. **✅ Advanced Tool Registration** - All 3 tools with Phase 2 intelligence
-3. **✅ Multilingual Natural Language Processing** - English, Chinese, Japanese support
-4. **✅ Intelligent Query Routing** - AI-powered intent classification and location extraction
-5. **✅ Error Handling & User Feedback** - Comprehensive error handling with suggestions
-6. **✅ Performance Optimization** - Sub-second response times with caching
-7. **✅ Gemini AI Integration** - Google Vertex AI parsing (if credentials configured)
+1. **✅ Real Weather Data Integration** - search_weather tool returns actual weather information
+2. **✅ Complete Data Pipeline** - Query → Parser → Router → WeatherService → Formatted Response
+3. **✅ Rich Data Formatting** - Current conditions, daily forecast, hourly forecast all formatted
+4. **✅ Multi-language Processing** - Chinese, English, Japanese queries handled correctly
+5. **✅ Cache Integration** - Weather data caching for improved performance
+6. **✅ Error Recovery** - Graceful fallback to mock data when APIs unavailable
+7. **✅ Production Response Format** - User-friendly weather information display
 
-### Phase 2 Features Working:
-- **🤖 Gemini AI Parser**: Natural language understanding with multilingual support
-- **🗺️ Query Router**: Intelligent routing with multi-criteria API selection  
-- **🚨 Error Handler**: User-friendly error messages with actionable suggestions
-- **⚡ Performance**: Caching and optimization for production use
-- **🔒 Security**: Google Cloud Secret Manager integration
+### Phase 4.1 Features Working:
+- **🌤️ Weather Data**: Real current conditions with all metrics
+- **📅 Forecast Data**: Multi-day forecasts with temperatures and conditions
+- **⏰ Hourly Data**: Hour-by-hour weather predictions
+- **🌍 Location Resolution**: Automatic location detection from queries
+- **💾 Smart Caching**: Differentiated TTL for different data types
+- **📊 Metadata Display**: Shows data source, confidence, API used
 
-This confirms Phase 2 is **production-ready** for Phase 3 Google Weather API integration!
+This confirms Phase 4.1 has successfully integrated **real weather data** into the MCP tool!

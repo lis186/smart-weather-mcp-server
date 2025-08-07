@@ -233,7 +233,7 @@ export class LocationService {
       });
 
       if (!searchResult.success) {
-        return searchResult as WeatherAPIResponse<Location[]>;
+        return searchResult as unknown as WeatherAPIResponse<Location[]>;
       }
 
       const suggestions = [
@@ -383,7 +383,7 @@ export class LocationService {
   /**
    * Calculate center point of bounds
    */
-  private calculateCenter(bounds: LocationSearchOptions['bounds']!): { lat: number; lng: number } {
+  private calculateCenter(bounds: NonNullable<LocationSearchOptions['bounds']>): { lat: number; lng: number } {
     return {
       lat: (bounds.northeast.lat + bounds.southwest.lat) / 2,
       lng: (bounds.northeast.lng + bounds.southwest.lng) / 2
@@ -393,7 +393,7 @@ export class LocationService {
   /**
    * Calculate radius from bounds
    */
-  private calculateRadius(bounds: LocationSearchOptions['bounds']!): number {
+  private calculateRadius(bounds: NonNullable<LocationSearchOptions['bounds']>): number {
     const latDiff = Math.abs(bounds.northeast.lat - bounds.southwest.lat);
     const lngDiff = Math.abs(bounds.northeast.lng - bounds.southwest.lng);
     
