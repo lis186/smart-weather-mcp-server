@@ -8,6 +8,7 @@ import { LocationService } from './location-service.js';
 import { SecretManager } from './secret-manager.js';
 import { logger } from './logger.js';
 import { ErrorResponseService } from './error-response-service.js';
+import { errorResponseTemplateService } from './error-response-template.js';
 import type {
   WeatherAPIConfig,
   WeatherAPIResponse,
@@ -103,17 +104,28 @@ export class WeatherService {
 
   constructor(config: WeatherServiceConfig) {
     this.config = config;
-    this.initializeServices();
+    // Don't initialize here - will be done explicitly in ensureInitialized()
     
     // Setup cache cleanup interval
     if (config.cache?.enabled) {
       setInterval(() => this.cleanupCache(), WeatherService.CACHE_CLEANUP_INTERVAL);
     }
 
-    logger.info('Weather service initialized', {
+    logger.info('Weather service constructor completed', {
       cacheEnabled: config.cache?.enabled,
       apiLimitsEnabled: !!config.apiLimits
     });
+  }
+
+  /**
+   * Ensure services are initialized before use
+   */
+  private async ensureInitialized(): Promise<void> {
+    if (this.weatherClient && this.locationService) {
+      return; // Already initialized
+    }
+    
+    await this.initializeServices();
   }
 
   /**
@@ -134,7 +146,7 @@ export class WeatherService {
         this.weatherClient = new GoogleWeatherClient(apiConfig);
         this.locationService = new LocationService(apiConfig);
         
-        logger.info('Weather APIs initialized successfully');
+        logger.info('Google Weather APIs initialized successfully');
       } else {
         logger.warn('Weather API key not available - using mock responses');
       }
@@ -151,17 +163,40 @@ export class WeatherService {
    */
   private async loadSecrets(): Promise<{ weatherApiKey?: string }> {
     try {
-      const weatherApiKey = await this.config.secretManager.getSecret(
+      // Try Google Cloud Secret Manager first
+      let weatherApiKey = await this.config.secretManager.getSecret(
         'GOOGLE_WEATHER_API_KEY_SECRET'
       ) || await this.config.secretManager.getSecret(
         'GOOGLE_WEATHER_API_KEY'
       );
+      
+      // Fallback to environment variables for local development
+      if (!weatherApiKey) {
+        weatherApiKey = process.env.WEATHER_API_KEY || process.env.GOOGLE_WEATHER_API_KEY;
+        if (weatherApiKey) {
+          logger.info('Using weather API key from environment variables');
+        }
+      }
+      
+      logger.info('Weather API key status', { 
+        hasSecretManagerKey: !!(await this.config.secretManager.getSecret('GOOGLE_WEATHER_API_KEY_SECRET')),
+        hasEnvKey: !!(process.env.WEATHER_API_KEY || process.env.GOOGLE_WEATHER_API_KEY),
+        finalKeyAvailable: !!weatherApiKey
+      });
       
       return { weatherApiKey };
     } catch (error) {
       logger.error('Failed to load weather API secrets', { 
         error: (error as Error).message 
       });
+      
+      // Fallback to environment variables even if Secret Manager fails
+      const envKey = process.env.WEATHER_API_KEY || process.env.GOOGLE_WEATHER_API_KEY;
+      if (envKey) {
+        logger.warn('Secret Manager failed, using environment variable fallback');
+        return { weatherApiKey: envKey };
+      }
+      
       return {};
     }
   }
@@ -171,17 +206,16 @@ export class WeatherService {
    */
   async queryWeather(request: WeatherQueryRequest): Promise<WeatherAPIResponse<WeatherQueryResult>> {
     try {
+      // Ensure services are initialized
+      await this.ensureInitialized();
+      
       // Rate limiting check
       if (!this.checkRateLimit()) {
-        return {
-          success: false,
-          error: {
-            code: 'RATE_LIMIT_EXCEEDED',
-            message: 'Too many requests. Please try again later.',
-            details: 'API rate limit exceeded'
-          },
-          timestamp: new Date().toISOString()
-        };
+        return errorResponseTemplateService.createErrorResponse(
+          'RATE_LIMIT_EXCEEDED',
+          { service: 'Weather Service', retryable: true },
+          'API rate limit exceeded - too many requests in a short time period'
+        );
       }
 
       logger.info('Processing weather query', {
@@ -262,6 +296,9 @@ export class WeatherService {
    * Get current weather for a location
    */
   async getCurrentWeather(location: Location, options?: WeatherQueryRequest['options']): Promise<WeatherAPIResponse<CurrentWeatherData>> {
+    // Ensure services are initialized
+    await this.ensureInitialized();
+    
     // Validate request parameters
     const validationError = this.validateLocation(location);
     if (validationError) {
@@ -274,8 +311,17 @@ export class WeatherService {
     }
     
     if (!this.weatherClient) {
-      return this.createMockCurrentWeather(location, options);
+      logger.warn('WeatherClient not available', {
+        hasWeatherClient: !!this.weatherClient,
+        location: location.name
+      });
+      return this.createLocationNotSupportedResponse(location, 'Weather client not initialized');
     }
+    
+    logger.info('Using real Google Weather API client', {
+      location: location.name,
+      hasClient: !!this.weatherClient
+    });
 
     const request: CurrentWeatherRequest = {
       location,
@@ -283,15 +329,44 @@ export class WeatherService {
       language: options?.language || 'en'
     };
 
-    return this.weatherClient.getCurrentWeather(request);
+    try {
+      return await this.weatherClient.getCurrentWeather(request);
+    } catch (error: any) {
+      // Handle LOCATION_NOT_SUPPORTED error with enhanced template system
+      if (error.name === 'LOCATION_NOT_SUPPORTED') {
+        return this.createLocationNotSupportedResponse(
+          location, 
+          error.details || error.message, 
+          'Google Weather API'
+        );
+      }
+      
+      // Handle API access denied errors
+      if (error.name === 'API_ACCESS_DENIED') {
+        return errorResponseTemplateService.createAPIAccessDeniedError(
+          'Google Weather API',
+          error.details || error.message
+        );
+      }
+      
+      // Re-throw other errors
+      throw error;
+    }
   }
 
   /**
    * Get weather forecast for a location
    */
   async getForecast(location: Location, options?: WeatherQueryRequest['options']): Promise<WeatherAPIResponse<DailyForecast[]>> {
+    // Ensure services are initialized
+    await this.ensureInitialized();
+    
     if (!this.weatherClient) {
-      return this.createMockForecast(location, options);
+      return errorResponseTemplateService.createServiceUnavailableError(
+        'Weather Forecast Service',
+        'Weather client not initialized - API credentials may be missing',
+        false
+      );
     }
 
     const request: ForecastRequest = {
@@ -301,7 +376,29 @@ export class WeatherService {
       language: options?.language || 'en'
     };
 
-    return this.weatherClient.getDailyForecast(request);
+    try {
+      return await this.weatherClient.getDailyForecast(request);
+    } catch (error: any) {
+      // Handle LOCATION_NOT_SUPPORTED error with enhanced template system
+      if (error.name === 'LOCATION_NOT_SUPPORTED') {
+        return this.createLocationNotSupportedResponse(
+          location, 
+          error.details || error.message,
+          'Google Weather Forecast API'
+        );
+      }
+      
+      // Handle API access denied errors
+      if (error.name === 'API_ACCESS_DENIED') {
+        return errorResponseTemplateService.createAPIAccessDeniedError(
+          'Google Weather Forecast API',
+          error.details || error.message
+        );
+      }
+      
+      // Re-throw other errors
+      throw error;
+    }
   }
 
   /**
@@ -309,7 +406,11 @@ export class WeatherService {
    */
   async getHourlyForecast(location: Location, hours: number = 24): Promise<WeatherAPIResponse<HourlyForecast>> {
     if (!this.weatherClient) {
-      return this.createMockHourlyForecast(location, hours);
+      return errorResponseTemplateService.createServiceUnavailableError(
+        'Hourly Forecast Service',
+        'Weather client not initialized - API credentials may be missing',
+        false
+      );
     }
 
     const request: ForecastRequest = {
@@ -319,15 +420,44 @@ export class WeatherService {
       language: 'en'
     };
 
-    return this.weatherClient.getHourlyForecast(request);
+    try {
+      return await this.weatherClient.getHourlyForecast(request);
+    } catch (error: any) {
+      // Handle LOCATION_NOT_SUPPORTED error with enhanced template system
+      if (error.name === 'LOCATION_NOT_SUPPORTED') {
+        return this.createLocationNotSupportedResponse(
+          location, 
+          error.details || error.message,
+          'Google Weather Hourly API'
+        );
+      }
+      
+      // Handle API access denied errors
+      if (error.name === 'API_ACCESS_DENIED') {
+        return errorResponseTemplateService.createAPIAccessDeniedError(
+          'Google Weather Hourly API',
+          error.details || error.message
+        );
+      }
+      
+      // Re-throw other errors
+      throw error;
+    }
   }
 
   /**
    * Search for locations
    */
   async searchLocations(query: string, options?: LocationSearchOptions): Promise<WeatherAPIResponse<LocationConfirmation>> {
+    // Ensure services are initialized
+    await this.ensureInitialized();
+    
     if (!this.locationService) {
-      return this.createMockLocationSearch(query);
+      return errorResponseTemplateService.createServiceUnavailableError(
+        'Location Search',
+        'The location search service requires API credentials to function properly',
+        false
+      );
     }
 
     return this.locationService.searchLocations(query, options);
@@ -419,6 +549,22 @@ export class WeatherService {
       if (currentWeather.success && currentWeather.data) {
         result.current = currentWeather.data;
         sources.push('current-conditions');
+      } else if (currentWeather.error && 
+                 (currentWeather.error.code === 'LOCATION_NOT_SUPPORTED' ||
+                  currentWeather.error.code === 'API_ACCESS_DENIED')) {
+        // For critical errors like location not supported, return immediately
+        // This implements the Honest Transparency approach
+        logger.info('Critical error detected, returning immediately', {
+          location: location.name,
+          errorCode: currentWeather.error.code,
+          message: currentWeather.error.message
+        });
+        
+        return {
+          success: false,
+          error: currentWeather.error,
+          timestamp: new Date().toISOString()
+        };
       }
 
       // Fetch forecast if requested
@@ -427,6 +573,17 @@ export class WeatherService {
         if (forecast.success && forecast.data) {
           result.daily = forecast.data;
           sources.push('daily-forecast');
+        } else if (forecast.error && 
+                   (forecast.error.code === 'LOCATION_NOT_SUPPORTED' ||
+                    forecast.error.code === 'API_ACCESS_DENIED')) {
+          // Return forecast-specific error if current weather was successful
+          if (!result.current) {
+            return {
+              success: false,
+              error: forecast.error,
+              timestamp: new Date().toISOString()
+            };
+          }
         }
       }
 
@@ -437,6 +594,27 @@ export class WeatherService {
           result.hourly = hourly.data;
           sources.push('hourly-forecast');
         }
+      }
+
+      // Check if we have any successful data
+      if (!result.current && !result.daily && !result.hourly) {
+        // No data available at all
+        return {
+          success: false,
+          error: {
+            code: 'NO_DATA_AVAILABLE',
+            message: `No weather data available for ${location.name}`,
+            details: 'This location may not be supported by our weather data providers',
+            suggestions: [
+              'Try a nearby major city',
+              'Check the location spelling',
+              'Use latitude/longitude coordinates instead'
+            ],
+            severity: 'warning' as const,
+            retryable: false
+          },
+          timestamp: new Date().toISOString()
+        };
       }
 
       // Calculate overall confidence
@@ -736,6 +914,18 @@ export class WeatherService {
     if (result.hourly) confidence += 0.1;
     
     return Math.min(1.0, confidence);
+  }
+
+  /**
+   * Create location not supported response with enhanced template system
+   * Uses ErrorResponseTemplateService for flexible, configurable error handling
+   */
+  private createLocationNotSupportedResponse(location: Location, details: string, apiName?: string): WeatherAPIResponse<any> {
+    return errorResponseTemplateService.createLocationNotSupportedError(
+      location, 
+      details, 
+      apiName || 'Google Weather API'
+    );
   }
 
   /**

@@ -107,6 +107,9 @@ export interface WeatherAPIResponse<T> {
     code: string;
     message: string;
     details?: string;
+    suggestions?: string[];
+    severity?: 'info' | 'warning' | 'error' | 'critical';
+    retryable?: boolean;
   };
   requestId?: string;
   timestamp: string;

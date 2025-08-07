@@ -35,15 +35,38 @@ export interface LocationConfirmation {
 export class LocationService {
   private readonly client: GoogleMapsClient;
   
-  // Common location patterns for better matching
+  // Universal location patterns - supports all languages without hardcoding
   private readonly locationPatterns = [
-    // Chinese patterns
-    /([北京|上海|廣州|深圳|台北|高雄|香港|澳門|東京|大阪|京都|首爾|釜山])/g,
-    // English patterns  
-    /(New York|Los Angeles|London|Paris|Tokyo|Beijing|Shanghai|Sydney|Toronto|Vancouver)/gi,
-    // Geographic terms
-    /([市|區|縣|省|州|國|都|府|郡])/g,
-    /(city|state|province|country|region|area|district)/gi
+    // Pattern 1: Universal weather keywords + location extraction
+    // Supports: English, Chinese, Spanish, French, German, Russian, Hindi, Korean, Japanese, etc.
+    /^(.+?)(?:\s+)?(?:weather|天氣|氣象|forecast|預報|clima|météo|wetter|погoda|मौसम|날씨|天気|tempo|väder|vejr)(?:.*?)(?:\s|$)/i,
+    
+    // Pattern 2: Location after weather keywords  
+    /(?:weather|天氣|氣象|forecast|預報|clima|météo|wetter|погода|मौसम|날씨|天気|tempo|väder|vejr)(?:\s+)(.+?)(?:\s|$)/i,
+    
+    // Pattern 2.5: Chinese question patterns (台北今天天氣如何？)
+    /^([A-Za-z\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]+)(?:今天|明天|現在|今日|明日|현재|오늘|내일|きょう|あした)(?:天氣|氣象|날씨|天気)(?:如何|怎樣|怎麼樣|어때|どう)/i,
+    
+    // Pattern 3: Prepositions + location (multi-language)
+    /(?:in|at|for|en|dans|在|à|in|в|में|에서|で|na|em)\s+([A-Za-z\u00C0-\u017F\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af\u0600-\u06ff\u0900-\u097f\s]{2,30}?)(?:\s|$|[,.!?])/i,
+    
+    // Pattern 4: Geographic suffixes (universal)
+    /([A-Za-z\u00C0-\u017F\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]+(?:市|區|縣|省|州|國|都|府|郡|県|city|town|ville|stadt|ciudad|città|город|नगर|시|도))/i,
+    
+    // Pattern 5: Capitalized proper nouns (Latin scripts with accents)
+    /\b([A-Z][a-zA-Z\u00C0-\u017F]{1,}(?:\s+[A-Z][a-zA-Z\u00C0-\u017F]{1,}){0,3})\b/,
+    
+    // Pattern 6: CJK characters (Chinese, Japanese, Korean)
+    /([\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]{2,})/,
+    
+    // Pattern 7: Arabic script locations
+    /([\u0600-\u06ff]{2,})/,
+    
+    // Pattern 8: Devanagari script (Hindi, Sanskrit, etc.)
+    /([\u0900-\u097f]{2,})/,
+    
+    // Pattern 9: Generic multi-word locations (fallback)
+    /([A-Za-z\u00C0-\u017F\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af\u0600-\u06ff\u0900-\u097f]{2,}(?:\s+[A-Za-z\u00C0-\u017F\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af\u0600-\u06ff\u0900-\u097f]+){0,2})/
   ];
 
   constructor(config: WeatherAPIConfig) {
@@ -233,7 +256,7 @@ export class LocationService {
       });
 
       if (!searchResult.success) {
-        return searchResult as WeatherAPIResponse<Location[]>;
+        return searchResult as unknown as WeatherAPIResponse<Location[]>;
       }
 
       const suggestions = [
@@ -383,7 +406,7 @@ export class LocationService {
   /**
    * Calculate center point of bounds
    */
-  private calculateCenter(bounds: LocationSearchOptions['bounds']!): { lat: number; lng: number } {
+  private calculateCenter(bounds: NonNullable<LocationSearchOptions['bounds']>): { lat: number; lng: number } {
     return {
       lat: (bounds.northeast.lat + bounds.southwest.lat) / 2,
       lng: (bounds.northeast.lng + bounds.southwest.lng) / 2
@@ -393,7 +416,7 @@ export class LocationService {
   /**
    * Calculate radius from bounds
    */
-  private calculateRadius(bounds: LocationSearchOptions['bounds']!): number {
+  private calculateRadius(bounds: NonNullable<LocationSearchOptions['bounds']>): number {
     const latDiff = Math.abs(bounds.northeast.lat - bounds.southwest.lat);
     const lngDiff = Math.abs(bounds.northeast.lng - bounds.southwest.lng);
     
