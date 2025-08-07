@@ -20,6 +20,11 @@ import { SecretManager } from './secret-manager.js';
 import type { WeatherQueryResult } from './weather-service.js';
 import type { ParsedWeatherQuery, RoutingDecision } from '../types/routing.js';
 
+// Phase 4.2 imports
+import { LocationService } from './location-service.js';
+import type { LocationConfirmation } from './location-service.js';
+import { GeminiWeatherAdvisor } from './gemini-weather-advisor.js';
+
 /**
  * Shared tool handler service to avoid code duplication between STDIO and HTTP modes
  * Phase 2: Integrated with Gemini AI parser and intelligent query routing
@@ -29,6 +34,8 @@ export class ToolHandlerService {
   private static geminiParser: GeminiWeatherParser | null = null;
   private static errorHandler = new WeatherErrorHandler();
   private static weatherService: WeatherService | null = null;
+  private static locationService: LocationService | null = null;
+  private static weatherAdvisor: GeminiWeatherAdvisor | null = null;
 
   /**
    * Initialize Phase 2+ components with IntelligentQueryService
@@ -406,66 +413,87 @@ export class ToolHandlerService {
 
   private static async handleFindLocation(query: WeatherQuery) {
     try {
-      // Use Gemini parser for location parsing if available
+      logger.info('Phase 4.2: Find location request', { query: query.query, context: query.context });
+
+      // Initialize location service
+      const locationService = await this.getLocationService();
+      
+      // Extract potential location from query using multiple methods
+      let locationCandidates: string[] = [];
+      
+      // Method 1: Use Gemini parser if available for intelligent extraction
       if (this.geminiParser) {
-        const parseResult = await this.geminiParser.parseQuery({ query: query.query });
-        
-        if (parseResult.success && parseResult.result) {
-          const { location, intent, confidence, userPreferences } = parseResult.result;
-          
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `📍 **Phase 3.2 Location Search Results**\n\n` +
-                     `**Query Analysis:**\n` +
-                     `- Original: "${query.query}"\n` +
-                     `- Detected Location: ${location.name || 'Not found'}\n` +
-                     `- Coordinates: ${location.coordinates ? `${location.coordinates.lat}, ${location.coordinates.lng}` : 'Not available'}\n` +
-                     `- Location Confidence: ${Math.round((location.confidence || 0) * 100)}%\n` +
-                     `- Overall Confidence: ${Math.round((intent?.confidence || confidence) * 100)}%\n\n` +
-                     `**Intent Classification:**\n` +
-                     `- Primary Intent: ${intent.primary}\n` +
-                     `- Intent Confidence: ${Math.round(intent.confidence * 100)}%\n\n` +
-                     `**Language Detection:**\n` +
-                     `- Language: ${userPreferences.language}\n` +
-                     `- Units: ${userPreferences.temperatureUnit}\n\n` +
-                     `*Phase 3.2: Enhanced location parsing with caching and error handling.*`
-              },
-            ],
-          };
-        } else {
-          const errorMessage = parseResult.error?.message || 'Failed to parse location';
-          const suggestions = parseResult.error?.suggestions?.join(', ') || 'Try being more specific with location names';
-          
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `❌ **Location Search - Parsing Issue**\n\n` +
-                     `**Query:** "${query.query}"\n` +
-                     `**Issue:** ${errorMessage}\n` +
-                     `**Suggestions:** ${suggestions}\n\n` +
-                     `*This shows Phase 2 error handling with helpful suggestions.*`
-              },
-            ],
-          };
+        try {
+          const parseResult = await this.geminiParser.parseQuery({ query: query.query });
+          if (parseResult.success && parseResult.result?.location?.name) {
+            locationCandidates.push(parseResult.result.location.name);
+          }
+        } catch (error) {
+          logger.warn('Gemini location parsing failed, using fallback', { error: error instanceof Error ? error.message : String(error) });
         }
-      } else {
-        // Fallback without Gemini parser
+      }
+
+      // Method 2: Use LocationService pattern extraction as fallback/supplement
+      const extractedLocations = locationService.extractLocationFromText(query.query);
+      locationCandidates.push(...extractedLocations);
+
+      // If no candidates found, use the entire query
+      if (locationCandidates.length === 0) {
+        locationCandidates.push(query.query);
+      }
+
+      // Use the most promising candidate (first one from Gemini if available, otherwise first extracted)
+      const searchQuery = locationCandidates[0];
+      
+      // Configure search options based on context
+      const searchOptions = this.parseLocationSearchOptions(query.context);
+      
+      // Perform location search
+      const searchResult = await locationService.searchLocations(searchQuery, searchOptions);
+
+      if (!searchResult.success) {
         return {
           content: [
             {
               type: 'text',
-              text: `📍 **Phase 3.2 Location Search (Basic Mode)**\n\n` +
+              text: `❌ **Location Search Failed**\n\n` +
                    `**Query:** "${query.query}"\n` +
-                   `**Status:** Gemini AI parser not available (requires GOOGLE_CLOUD_PROJECT)\n` +
-                   `**Fallback:** Basic location extraction would be performed here\n\n` +
-                   `*To see full Phase 3.2 capabilities, configure Google Cloud Project ID.*`
+                   `**Issue:** ${searchResult.error?.message || 'Unknown error'}\n` +
+                   `**Suggestions:** ${searchResult.error?.details || 'Try being more specific with location names'}\n\n` +
+                   `*Phase 4.2: Enhanced location search with Google Maps integration.*`
             },
           ],
         };
       }
+
+      const locationConfirmation = searchResult.data!;
+      
+      // Format response with both JSON and human-readable content
+      const jsonData = {
+        location: locationConfirmation.location,
+        alternatives: locationConfirmation.alternatives,
+        confidence: locationConfirmation.confidence,
+        source: locationConfirmation.source,
+        needsConfirmation: locationConfirmation.needsConfirmation,
+        searchQuery: searchQuery,
+        extractedCandidates: locationCandidates
+      };
+
+      const textResponse = this.formatLocationResponse(locationConfirmation, query);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(jsonData, null, 2)
+          },
+          {
+            type: 'text',
+            text: textResponse
+          },
+        ],
+      };
+
     } catch (error) {
       logger.error('Find location error', { query: query.query }, error instanceof Error ? error : new Error(String(error)));
       return this.fallbackResponse('find_location', query, error instanceof Error ? error.message : String(error));
@@ -474,18 +502,104 @@ export class ToolHandlerService {
 
   private static async handleGetWeatherAdvice(query: WeatherQuery) {
     try {
+      logger.info('Phase 4.2: Weather advice request', { query: query.query, context: query.context });
+
+      // Initialize services
+      if (!this.intelligentQueryService) {
+        this.initializeIntelligentQueryService();
+      }
+
+      // Initialize weather advisor
+      const weatherAdvisor = this.getWeatherAdvisor();
+
+      // Step 1: Analyze the query to understand intent and location
+      let weatherData: WeatherQueryResult | undefined;
+      let analysisResult;
+
+      if (this.intelligentQueryService) {
+        try {
+          analysisResult = await this.intelligentQueryService.analyzeQuery(query);
+          
+          if (analysisResult.success && analysisResult.data?.location?.name) {
+            // Step 2: Get weather data for the location
+            const weatherService = await this.getWeatherService();
+            const weatherRequest = {
+              query: `${analysisResult.data.location.name} weather`,
+              context: query.context,
+              location: analysisResult.data.location,
+              options: {
+                units: 'metric' as const,
+                language: analysisResult.data.language || 'en',
+                includeHourly: true,
+                includeForecast: true,
+                forecastDays: 3
+              }
+            };
+
+            const weatherResult = await weatherService.queryWeather(weatherRequest);
+            if (weatherResult.success) {
+              weatherData = weatherResult.data;
+            }
+          }
+        } catch (error) {
+          logger.warn('Failed to get weather data for advice', { error: error instanceof Error ? error.message : String(error) });
+        }
+      }
+
+      // Step 3: Generate advice using Gemini AI or rule-based fallback
+      const adviceRequest = {
+        query: query.query,
+        context: query.context,
+        weatherData,
+        language: analysisResult?.data?.language || 'en'
+      };
+
+      const adviceResult = await weatherAdvisor.generateAdvice(adviceRequest);
+
+      if (!adviceResult.success) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `❌ **Weather Advice Error**\n\n` +
+                   `**Query:** "${query.query}"\n` +
+                   `**Issue:** ${adviceResult.error?.message || 'Failed to generate advice'}\n` +
+                   `**Suggestions:** Try being more specific about your activity or location\n\n` +
+                   `*Phase 4.2: AI-powered weather advice with intelligent fallbacks.*`
+            },
+          ],
+        };
+      }
+
+      // Format response with both JSON and human-readable content
+      const advice = adviceResult.advice!;
+      const jsonData = {
+        advice: advice,
+        weatherData: weatherData ? {
+          location: weatherData.location,
+          current: weatherData.current,
+          hasForcast: !!weatherData.daily
+        } : null,
+        source: adviceResult.source,
+        query: query.query,
+        context: query.context
+      };
+
+      const textResponse = this.formatWeatherAdviceResponse(advice, adviceResult.source, query, weatherData);
+
       return {
         content: [
           {
             type: 'text',
-            text: `💡 **Weather Advice - Coming Soon**\n\n` +
-                 `**Query:** "${query.query}"\n` +
-                 `**Status:** Weather advice will be available in Phase 4.2\n` +
-                 `**Current:** Use search_weather tool for current weather information\n\n` +
-                 `*Phase 4.1: Focus on intelligent weather search with real data.*`
+            text: JSON.stringify(jsonData, null, 2)
+          },
+          {
+            type: 'text',
+            text: textResponse
           },
         ],
       };
+
     } catch (error) {
       logger.error('Weather advice error', { query: query.query }, error instanceof Error ? error : new Error(String(error)));
       return this.fallbackResponse('get_weather_advice', query, error instanceof Error ? error.message : String(error));
@@ -536,6 +650,55 @@ export class ToolHandlerService {
       logger.info('Phase 4.1: WeatherService initialized');
     }
     return this.weatherService;
+  }
+
+  /**
+   * Phase 4.2: Get or initialize LocationService
+   */
+  private static async getLocationService(): Promise<LocationService> {
+    if (!this.locationService) {
+      const secretManager = new SecretManager();
+      const apiKey = await secretManager.getSecret('GOOGLE_MAPS_API_KEY');
+      
+      this.locationService = new LocationService({
+        apiKey: apiKey || process.env.GOOGLE_MAPS_API_KEY || process.env.WEATHER_API_KEY || 'AIzaSyDTrMoVpq8yGL7SMbWRrrS7w7qw1CdzEwo'
+      });
+      logger.info('Phase 4.2: LocationService initialized');
+    }
+    return this.locationService;
+  }
+
+  /**
+   * Phase 4.2: Get or initialize GeminiWeatherAdvisor
+   */
+  private static getWeatherAdvisor(): GeminiWeatherAdvisor {
+    if (!this.weatherAdvisor) {
+      if (this.geminiParser) {
+        // Use existing Gemini client from parser
+        const geminiClient = (this.geminiParser as any).geminiClient;
+        this.weatherAdvisor = new GeminiWeatherAdvisor(geminiClient);
+        logger.info('Phase 4.2: GeminiWeatherAdvisor initialized with existing client');
+      } else {
+        // Try to create new Gemini client
+        const projectId = process.env.GOOGLE_CLOUD_PROJECT;
+        if (projectId) {
+          try {
+            const geminiClient = new GeminiClient({ projectId });
+            this.weatherAdvisor = new GeminiWeatherAdvisor(geminiClient);
+            logger.info('Phase 4.2: GeminiWeatherAdvisor initialized with new client');
+          } catch (error) {
+            logger.warn('Failed to initialize Gemini client for advisor', { error: error instanceof Error ? error.message : String(error) });
+            // Create a mock advisor that will use rule-based fallback
+            this.weatherAdvisor = new GeminiWeatherAdvisor(null as any);
+          }
+        } else {
+          // Create a mock advisor that will use rule-based fallback
+          this.weatherAdvisor = new GeminiWeatherAdvisor(null as any);
+          logger.info('Phase 4.2: GeminiWeatherAdvisor initialized in fallback mode');
+        }
+      }
+    }
+    return this.weatherAdvisor;
   }
 
   /**
@@ -679,5 +842,191 @@ export class ToolHandlerService {
     if (uvIndex <= 7) return '(High)';
     if (uvIndex <= 10) return '(Very High)';
     return '(Extreme)';
+  }
+
+  /**
+   * Phase 4.2: Parse location search options from context string
+   */
+  private static parseLocationSearchOptions(context?: string): any {
+    const options: any = {
+      maxResults: 5,
+      language: 'en',
+      strictMode: false
+    };
+
+    if (!context) return options;
+
+    // Parse language preference
+    if (context.includes('中文') || context.includes('繁體') || context.includes('台灣')) {
+      options.language = 'zh-TW';
+    } else if (context.includes('日文') || context.includes('日本')) {
+      options.language = 'ja';
+    } else if (context.includes('英文') || context.includes('English')) {
+      options.language = 'en';
+    }
+
+    // Parse country bias
+    if (context.includes('台灣') || context.includes('Taiwan')) {
+      options.countryBias = 'Taiwan';
+    } else if (context.includes('日本') || context.includes('Japan')) {
+      options.countryBias = 'Japan';
+    } else if (context.includes('美國') || context.includes('United States')) {
+      options.countryBias = 'United States';
+    }
+
+    // Parse strict mode
+    if (context.includes('精確') || context.includes('exact') || context.includes('strict')) {
+      options.strictMode = true;
+    }
+
+    return options;
+  }
+
+  /**
+   * Phase 4.2: Format location confirmation response
+   */
+  private static formatLocationResponse(confirmation: LocationConfirmation, query: WeatherQuery): string {
+    const { location, confidence, alternatives, source, needsConfirmation } = confirmation;
+    
+    let response = `📍 **Location Search Results**\n\n`;
+    
+    // Primary result
+    response += `**Found Location:**\n`;
+    response += `   Name: ${location.name}\n`;
+    if (location.region) response += `   Region: ${location.region}\n`;
+    if (location.country) response += `   Country: ${location.country}\n`;
+    response += `   Coordinates: ${location.latitude.toFixed(4)}°, ${location.longitude.toFixed(4)}°\n`;
+    response += `   Confidence: ${Math.round(confidence * 100)}%\n`;
+    response += `   Source: ${source}\n\n`;
+
+    // Alternatives if available
+    if (alternatives && alternatives.length > 0) {
+      response += `**Alternative Locations:**\n`;
+      alternatives.forEach((alt, index) => {
+        response += `   ${index + 1}. ${alt.name}`;
+        if (alt.region || alt.country) {
+          response += ` (${alt.region ? alt.region + ', ' : ''}${alt.country || ''})`;
+        }
+        response += `\n`;
+      });
+      response += `\n`;
+    }
+
+    // Confirmation status
+    if (needsConfirmation) {
+      response += `⚠️ **Confirmation Recommended**\n`;
+      response += `Multiple locations found or confidence below threshold.\n`;
+      response += `Please verify this is the correct location before proceeding.\n\n`;
+    } else {
+      response += `✅ **Location Confirmed**\n`;
+      response += `High confidence match - ready to use for weather queries.\n\n`;
+    }
+
+    // Query info
+    response += `**Query Information:**\n`;
+    response += `   Original: "${query.query}"\n`;
+    if (query.context) response += `   Context: "${query.context}"\n`;
+    response += `   Processing: Intelligent location extraction with Google Maps\n`;
+    
+    response += `\n*Phase 4.2: Enhanced location search with geocoding and confidence scoring.*`;
+    
+    return response;
+  }
+
+  /**
+   * Phase 4.2: Format weather advice response
+   */
+  private static formatWeatherAdviceResponse(
+    advice: any,
+    source: string,
+    query: WeatherQuery,
+    weatherData?: WeatherQueryResult
+  ): string {
+    let response = `💡 **Weather Advice**\n\n`;
+
+    // Summary
+    if (advice.summary) {
+      response += `**${advice.summary}**\n\n`;
+    }
+
+    // Warnings first (if any)
+    if (advice.warnings && advice.warnings.length > 0) {
+      response += `⚠️ **Important Warnings:**\n`;
+      advice.warnings.forEach((warning: any) => {
+        const severityIconMap = {
+          'info': 'ℹ️',
+          'warning': '⚠️',
+          'critical': '🚨'
+        } as const;
+        const severityIcon = severityIconMap[warning.severity as keyof typeof severityIconMap] || '⚠️';
+        response += `   ${severityIcon} ${warning.message}\n`;
+      });
+      response += `\n`;
+    }
+
+    // Recommendations
+    if (advice.recommendations && advice.recommendations.length > 0) {
+      // Group by priority
+      const high = advice.recommendations.filter((r: any) => r.priority === 'high');
+      const medium = advice.recommendations.filter((r: any) => r.priority === 'medium');
+      const low = advice.recommendations.filter((r: any) => r.priority === 'low');
+
+      if (high.length > 0) {
+        response += `🔴 **High Priority:**\n`;
+        high.forEach((rec: any) => {
+          response += `   ${rec.icon} **${rec.category}**: ${rec.advice}\n`;
+        });
+        response += `\n`;
+      }
+
+      if (medium.length > 0) {
+        response += `🟡 **Medium Priority:**\n`;
+        medium.forEach((rec: any) => {
+          response += `   ${rec.icon} **${rec.category}**: ${rec.advice}\n`;
+        });
+        response += `\n`;
+      }
+
+      if (low.length > 0) {
+        response += `🟢 **General Advice:**\n`;
+        low.forEach((rec: any) => {
+          response += `   ${rec.icon} **${rec.category}**: ${rec.advice}\n`;
+        });
+        response += `\n`;
+      }
+    }
+
+    // Weather context (if available)
+    if (weatherData?.current) {
+      const current = weatherData.current;
+      const temp = this.getTemperature(current.temperature);
+      
+      response += `🌤️ **Current Conditions:**\n`;
+      response += `   Location: ${weatherData.location.name}\n`;
+      response += `   Temperature: ${temp.toFixed(1)}°C, ${current.description}\n`;
+      response += `   Humidity: ${current.humidity.toFixed(0)}%, Wind: ${current.windSpeed.kilometersPerHour.toFixed(1)} km/h\n`;
+      if (current.uvIndex !== undefined) {
+        response += `   UV Index: ${current.uvIndex} ${this.getUVDescription(current.uvIndex)}\n`;
+      }
+      response += `\n`;
+    }
+
+    // Query info and source
+    response += `**Query Information:**\n`;
+    response += `   Original: "${query.query}"\n`;
+    if (query.context) response += `   Context: "${query.context}"\n`;
+    
+    // Source information
+    if (source === 'gemini_ai') {
+      response += `   Processing: Gemini AI Enhanced Advice\n`;
+    } else if (source === 'rule_based') {
+      response += `   Processing: Rule-based Analysis\n`;
+    } else {
+      response += `   Processing: Hybrid Analysis\n`;
+    }
+
+    response += `\n*Phase 4.2: AI-powered weather advice with actionable recommendations.*`;
+    
+    return response;
   }
 }
