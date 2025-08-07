@@ -3,10 +3,10 @@
  * Tests the enhanced caching system with differentiated TTL and monitoring
  */
 
-import { WeatherService } from '../src/services/weather-service.js';
-import { ErrorResponseService } from '../src/services/error-response-service.js';
-import { SecretManager } from '../src/services/secret-manager.js';
-import type { Location } from '../src/types/weather-api.js';
+import { WeatherService } from '../../../src/services/weather-service.js';
+import { ErrorResponseService } from '../../../src/services/error-response-service.js';
+import { SecretManager } from '../../../src/services/secret-manager.js';
+import type { Location } from '../../../src/types/weather-api.js';
 
 // Define WeatherServiceConfig locally for testing
 interface WeatherServiceConfig {
@@ -26,7 +26,7 @@ interface WeatherServiceConfig {
 }
 
 // Mock SecretManager
-jest.mock('../src/services/secret-manager.js');
+jest.mock('../../../src/services/secret-manager.js');
 const mockSecretManager = new SecretManager() as jest.Mocked<SecretManager>;
 
 describe('Cache Mechanism - Phase 3.2', () => {

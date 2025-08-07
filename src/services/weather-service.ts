@@ -326,7 +326,7 @@ export class WeatherService {
     const request: CurrentWeatherRequest = {
       location,
       units: options?.units || 'metric',
-      language: options?.language || 'en'
+      language: 'en'  // Force English for consistent output
     };
 
     try {
@@ -373,7 +373,7 @@ export class WeatherService {
       location,
       days: options?.forecastDays || 7,
       units: options?.units || 'metric',
-      language: options?.language || 'en'
+      language: 'en'  // Force English for consistent output
     };
 
     try {

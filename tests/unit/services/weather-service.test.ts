@@ -3,16 +3,16 @@
  * Tests the complete weather service implementation
  */
 
-import { WeatherService } from '../src/services/weather-service.js';
-import { SecretManager } from '../src/services/secret-manager.js';
+import { WeatherService } from '../../../src/services/weather-service.js';
+import { SecretManager } from '../../../src/services/secret-manager.js';
 import type { 
   WeatherQueryRequest,
   WeatherServiceConfig
-} from '../src/services/weather-service.js';
-import type { Location } from '../src/types/weather-api.js';
+} from '../../../src/services/weather-service.js';
+import type { Location } from '../../../src/types/weather-api.js';
 
 // Mock SecretManager
-jest.mock('../src/services/secret-manager.js');
+jest.mock('../../../src/services/secret-manager.js');
 const MockSecretManager = SecretManager as jest.MockedClass<typeof SecretManager>;
 
 describe('WeatherService', () => {

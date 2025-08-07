@@ -329,7 +329,19 @@ export class IntelligentQueryService {
    * Detect query language
    */
   private detectLanguage(query: string): string {
-    if (/[\u4e00-\u9fff]/.test(query)) return 'zh';
+    // Chinese language detection with Traditional Chinese preference
+    if (/[\u4e00-\u9fff]/.test(query)) {
+      // Check for Traditional Chinese indicators
+      const traditionalIndicators = /[繁體台灣澀谷東京預報氣象詢問適合戶外運動該注意什麼]/;
+      const simplifiedIndicators = /[简体台湾涩谷东京预报气象询问适合户外运动该注意什么]/;
+      
+      if (traditionalIndicators.test(query) || !simplifiedIndicators.test(query)) {
+        return 'zh-TW'; // Traditional Chinese (Taiwan)
+      } else {
+        return 'zh-CN'; // Simplified Chinese
+      }
+    }
+    
     if (/[\u3040-\u30ff]/.test(query)) return 'ja';
     if (/[\uac00-\ud7af]/.test(query)) return 'ko';
     if (/[\u0600-\u06ff]/.test(query)) return 'ar';

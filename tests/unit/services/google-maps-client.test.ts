@@ -4,8 +4,8 @@
  */
 
 import axios from 'axios';
-import { GoogleMapsClient } from '../src/services/google-maps-client.js';
-import type { WeatherAPIConfig, LocationQuery, Location } from '../src/types/weather-api.js';
+import { GoogleMapsClient } from '../../../src/services/google-maps-client.js';
+import type { WeatherAPIConfig, LocationQuery, Location } from '../../../src/types/weather-api.js';
 
 // Mock axios
 jest.mock('axios');

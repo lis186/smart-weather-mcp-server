@@ -40,7 +40,7 @@ export class GoogleWeatherClient extends GoogleMapsClient {
         lat: request.location.latitude,
         lng: request.location.longitude,
         units: request.units || 'metric',
-        lang: request.language || 'en'
+        lang: this.mapLanguageCode(request.language || 'en')
       };
 
       logger.info('Fetching current weather', { 
@@ -92,7 +92,7 @@ export class GoogleWeatherClient extends GoogleMapsClient {
         lng: request.location.longitude,
         days: Math.min(request.days || 7, 10), // Limit to 10 days
         units: request.units || 'metric',
-        lang: request.language || 'en'
+        lang: this.mapLanguageCode(request.language || 'en')
       };
 
       logger.info('Fetching daily forecast', { 
@@ -143,7 +143,7 @@ export class GoogleWeatherClient extends GoogleMapsClient {
         lng: request.location.longitude,
         hours: Math.min(request.hours || 24, 120), // Limit to 120 hours (5 days)
         units: request.units || 'metric',
-        lang: request.language || 'en'
+        lang: this.mapLanguageCode(request.language || 'en')
       };
 
       logger.info('Fetching hourly forecast', { 
@@ -195,7 +195,7 @@ export class GoogleWeatherClient extends GoogleMapsClient {
         start_date: request.startDate,
         end_date: request.endDate,
         units: request.units || 'metric',
-        lang: request.language || 'en'
+        lang: this.mapLanguageCode(request.language || 'en')
       };
 
       logger.info('Fetching historical weather', { 
@@ -521,6 +521,25 @@ export class GoogleWeatherClient extends GoogleMapsClient {
   }
 
   /**
+   * Map our language codes to Google Weather API language codes
+   */
+  private mapLanguageCode(language: string): string {
+    const languageMap: Record<string, string> = {
+      'en': 'en',
+      'zh-TW': 'zh-TW',  // Traditional Chinese
+      'zh-CN': 'zh-CN',  // Simplified Chinese
+      'zh': 'zh-TW',     // Default Chinese to Traditional
+      'ja': 'ja',
+      'ko': 'ko',
+      'fr': 'fr',
+      'de': 'de',
+      'es': 'es'
+    };
+    
+    return languageMap[language] || 'en';
+  }
+
+  /**
    * Get weather API capabilities
    */
   getCapabilities(): object {
@@ -529,7 +548,7 @@ export class GoogleWeatherClient extends GoogleMapsClient {
       dailyForecast: { maxDays: 10 },
       hourlyForecast: { maxHours: 120 },
       historicalWeather: { available: true },
-      languages: ['en', 'zh-TW', 'ja'],
+      languages: ['en', 'zh-TW', 'zh-CN', 'ja', 'ko', 'fr', 'de', 'es'],
       units: ['metric', 'imperial']
     };
   }

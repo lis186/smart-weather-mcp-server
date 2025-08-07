@@ -3,12 +3,12 @@
  * Smart Weather MCP Server - Phase 2.1 Implementation
  */
 
-import { GeminiWeatherParser } from '../src/services/gemini-parser.js';
-import { GeminiClient } from '../src/services/gemini-client.js';
-import { QueryParsingRequest, ParsingResult } from '../src/types/parser.js';
+import { GeminiWeatherParser } from '../../../src/services/gemini-parser.js';
+import { GeminiClient } from '../../../src/services/gemini-client.js';
+import { QueryParsingRequest, ParsingResult } from '../../../src/types/parser.js';
 
 // Mock the Gemini client
-jest.mock('../src/services/gemini-client.js');
+jest.mock('../../../src/services/gemini-client.js');
 
 describe('GeminiWeatherParser', () => {
   let parser: GeminiWeatherParser;

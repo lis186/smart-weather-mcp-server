@@ -3,12 +3,12 @@
  * Tests location search, confirmation, and parsing functionality
  */
 
-import { LocationService } from '../src/services/location-service.js';
-import { GoogleMapsClient } from '../src/services/google-maps-client.js';
-import type { WeatherAPIConfig, GeocodingResult } from '../src/types/weather-api.js';
+import { LocationService } from '../../../src/services/location-service.js';
+import { GoogleMapsClient } from '../../../src/services/google-maps-client.js';
+import type { WeatherAPIConfig, GeocodingResult } from '../../../src/types/weather-api.js';
 
 // Mock GoogleMapsClient
-jest.mock('../src/services/google-maps-client.js');
+jest.mock('../../../src/services/google-maps-client.js');
 const MockedGoogleMapsClient = GoogleMapsClient as jest.MockedClass<typeof GoogleMapsClient>;
 
 describe('LocationService', () => {
