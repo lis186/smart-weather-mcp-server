@@ -58,10 +58,16 @@ export class ToolHandlerService {
 
     // Initialize IntelligentQueryService
     if (!this.intelligentQueryService) {
-      const config = { apiKey: process.env.WEATHER_API_KEY || 'AIzaSyDTrMoVpq8yGL7SMbWRrrS7w7qw1CdzEwo' };
+      const apiKey = process.env.WEATHER_API_KEY;
+      if (!apiKey) {
+        logger.warn('WEATHER_API_KEY not found, some functionality may be limited');
+        return; // Skip initialization if no API key
+      }
+      const config = { apiKey };
       this.intelligentQueryService = new IntelligentQueryService(config, this.geminiParser || undefined);
       logger.info('Phase 2+ IntelligentQueryService initialized', {
-        hasGeminiAI: !!this.geminiParser
+        hasGeminiAI: !!this.geminiParser,
+        hasWeatherApiKey: !!config.apiKey
       });
     }
   }
@@ -660,10 +666,19 @@ export class ToolHandlerService {
       const secretManager = new SecretManager();
       const apiKey = await secretManager.getSecret('GOOGLE_MAPS_API_KEY');
       
+      const finalApiKey = apiKey || process.env.GOOGLE_MAPS_API_KEY || process.env.WEATHER_API_KEY;
+      
+      if (!finalApiKey) {
+        throw new Error('Google Maps API key not found. Please set GOOGLE_MAPS_API_KEY environment variable or configure Secret Manager.');
+      }
+      
       this.locationService = new LocationService({
-        apiKey: apiKey || process.env.GOOGLE_MAPS_API_KEY || process.env.WEATHER_API_KEY || 'AIzaSyDTrMoVpq8yGL7SMbWRrrS7w7qw1CdzEwo'
+        apiKey: finalApiKey
       });
-      logger.info('Phase 4.2: LocationService initialized');
+      logger.info('Phase 4.2: LocationService initialized', {
+        hasApiKey: !!finalApiKey,
+        source: apiKey ? 'SecretManager' : 'Environment'
+      });
     }
     return this.locationService;
   }
