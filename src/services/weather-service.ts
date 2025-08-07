@@ -8,6 +8,7 @@ import { LocationService } from './location-service.js';
 import { SecretManager } from './secret-manager.js';
 import { logger } from './logger.js';
 import { ErrorResponseService } from './error-response-service.js';
+import { errorResponseTemplateService } from './error-response-template.js';
 import type {
   WeatherAPIConfig,
   WeatherAPIResponse,
@@ -210,15 +211,11 @@ export class WeatherService {
       
       // Rate limiting check
       if (!this.checkRateLimit()) {
-        return {
-          success: false,
-          error: {
-            code: 'RATE_LIMIT_EXCEEDED',
-            message: 'Too many requests. Please try again later.',
-            details: 'API rate limit exceeded'
-          },
-          timestamp: new Date().toISOString()
-        };
+        return errorResponseTemplateService.createErrorResponse(
+          'RATE_LIMIT_EXCEEDED',
+          { service: 'Weather Service', retryable: true },
+          'API rate limit exceeded - too many requests in a short time period'
+        );
       }
 
       logger.info('Processing weather query', {
@@ -335,9 +332,21 @@ export class WeatherService {
     try {
       return await this.weatherClient.getCurrentWeather(request);
     } catch (error: any) {
-      // Handle LOCATION_NOT_SUPPORTED error with transparent message
+      // Handle LOCATION_NOT_SUPPORTED error with enhanced template system
       if (error.name === 'LOCATION_NOT_SUPPORTED') {
-        return this.createLocationNotSupportedResponse(location, error.details || error.message);
+        return this.createLocationNotSupportedResponse(
+          location, 
+          error.details || error.message, 
+          'Google Weather API'
+        );
+      }
+      
+      // Handle API access denied errors
+      if (error.name === 'API_ACCESS_DENIED') {
+        return errorResponseTemplateService.createAPIAccessDeniedError(
+          'Google Weather API',
+          error.details || error.message
+        );
       }
       
       // Re-throw other errors
@@ -353,7 +362,11 @@ export class WeatherService {
     await this.ensureInitialized();
     
     if (!this.weatherClient) {
-      return this.createLocationNotSupportedResponse(location, 'Weather client not initialized');
+      return errorResponseTemplateService.createServiceUnavailableError(
+        'Weather Forecast Service',
+        'Weather client not initialized - API credentials may be missing',
+        false
+      );
     }
 
     const request: ForecastRequest = {
@@ -366,9 +379,21 @@ export class WeatherService {
     try {
       return await this.weatherClient.getDailyForecast(request);
     } catch (error: any) {
-      // Handle LOCATION_NOT_SUPPORTED error with transparent message
+      // Handle LOCATION_NOT_SUPPORTED error with enhanced template system
       if (error.name === 'LOCATION_NOT_SUPPORTED') {
-        return this.createLocationNotSupportedResponse(location, error.details || error.message);
+        return this.createLocationNotSupportedResponse(
+          location, 
+          error.details || error.message,
+          'Google Weather Forecast API'
+        );
+      }
+      
+      // Handle API access denied errors
+      if (error.name === 'API_ACCESS_DENIED') {
+        return errorResponseTemplateService.createAPIAccessDeniedError(
+          'Google Weather Forecast API',
+          error.details || error.message
+        );
       }
       
       // Re-throw other errors
@@ -381,7 +406,11 @@ export class WeatherService {
    */
   async getHourlyForecast(location: Location, hours: number = 24): Promise<WeatherAPIResponse<HourlyForecast>> {
     if (!this.weatherClient) {
-      return this.createLocationNotSupportedResponse(location, 'Weather client not initialized');
+      return errorResponseTemplateService.createServiceUnavailableError(
+        'Hourly Forecast Service',
+        'Weather client not initialized - API credentials may be missing',
+        false
+      );
     }
 
     const request: ForecastRequest = {
@@ -394,9 +423,21 @@ export class WeatherService {
     try {
       return await this.weatherClient.getHourlyForecast(request);
     } catch (error: any) {
-      // Handle LOCATION_NOT_SUPPORTED error with transparent message
+      // Handle LOCATION_NOT_SUPPORTED error with enhanced template system
       if (error.name === 'LOCATION_NOT_SUPPORTED') {
-        return this.createLocationNotSupportedResponse(location, error.details || error.message);
+        return this.createLocationNotSupportedResponse(
+          location, 
+          error.details || error.message,
+          'Google Weather Hourly API'
+        );
+      }
+      
+      // Handle API access denied errors
+      if (error.name === 'API_ACCESS_DENIED') {
+        return errorResponseTemplateService.createAPIAccessDeniedError(
+          'Google Weather Hourly API',
+          error.details || error.message
+        );
       }
       
       // Re-throw other errors
@@ -412,15 +453,11 @@ export class WeatherService {
     await this.ensureInitialized();
     
     if (!this.locationService) {
-      return {
-        success: false,
-        error: {
-          code: 'LOCATION_SERVICE_UNAVAILABLE',
-          message: 'Location search service is not available',
-          details: 'The location search service requires API credentials to function properly'
-        },
-        timestamp: new Date().toISOString()
-      };
+      return errorResponseTemplateService.createServiceUnavailableError(
+        'Location Search',
+        'The location search service requires API credentials to function properly',
+        false
+      );
     }
 
     return this.locationService.searchLocations(query, options);
@@ -832,21 +869,15 @@ export class WeatherService {
   }
 
   /**
-   * Create location not supported response with transparent messaging
-   * Replaces mock data fallback with honest error reporting
+   * Create location not supported response with enhanced template system
+   * Uses ErrorResponseTemplateService for flexible, configurable error handling
    */
-  private createLocationNotSupportedResponse(location: Location, details: string): WeatherAPIResponse<any> {
-    const locationDisplay = location.name || `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
-    
-    return {
-      success: false,
-      error: {
-        code: 'LOCATION_NOT_SUPPORTED',
-        message: `Weather information is not available for ${locationDisplay}`,
-        details: `${details}. This location may not be covered by our weather data provider. Try a nearby major city or different location.`
-      },
-      timestamp: new Date().toISOString()
-    };
+  private createLocationNotSupportedResponse(location: Location, details: string, apiName?: string): WeatherAPIResponse<any> {
+    return errorResponseTemplateService.createLocationNotSupportedError(
+      location, 
+      details, 
+      apiName || 'Google Weather API'
+    );
   }
 
   /**

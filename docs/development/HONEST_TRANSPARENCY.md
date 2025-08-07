@@ -70,7 +70,40 @@ if (apiError.status === 404) {
 
 ### Key Components
 
-#### 1. GoogleWeatherClient Error Handling
+#### 1. ErrorResponseTemplateService (Enterprise Enhancement)
+
+**New Addition**: Enterprise-grade configurable error handling system that provides:
+
+```typescript
+// Flexible, templated error responses
+export class ErrorResponseTemplateService {
+  createLocationNotSupportedError<T>(
+    location: Location,
+    details: string,
+    apiName = 'our weather data provider'
+  ): WeatherAPIResponse<T>
+  
+  createServiceUnavailableError<T>(
+    serviceName: string,
+    details: string,
+    retryable = true
+  ): WeatherAPIResponse<T>
+  
+  createAPIAccessDeniedError<T>(
+    apiName: string,
+    details: string
+  ): WeatherAPIResponse<T>
+}
+```
+
+**Features**:
+- **Dynamic Variable Interpolation**: Templates support `{location}`, `{apiName}`, `{service}` variables
+- **Context-Aware Suggestions**: Automatically suggests nearby supported cities based on geographic location
+- **Severity Levels**: `info`, `warning`, `error`, `critical` for appropriate user experience
+- **Internationalization Ready**: Template system supports multiple languages
+- **Configurable Templates**: Easy to customize error messages without changing core logic
+
+#### 2. GoogleWeatherClient Error Handling
 
 ```typescript
 // src/services/google-weather-client.ts
@@ -83,36 +116,94 @@ if (error.response?.status === 404) {
 }
 ```
 
-#### 2. WeatherService Response Creation
+#### 3. Enhanced WeatherService Integration
 
 ```typescript
 // src/services/weather-service.ts
-private createLocationNotSupportedResponse(location: Location, details: string): WeatherAPIResponse<any> {
-  const locationDisplay = location.name || `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
-  
-  return {
-    success: false,
-    error: {
-      code: 'LOCATION_NOT_SUPPORTED',
-      message: `Weather information is not available for ${locationDisplay}`,
-      details: `${details}. This location may not be covered by our weather data provider. Try a nearby major city or different location.`
-    },
-    timestamp: new Date().toISOString()
-  };
+private createLocationNotSupportedResponse(location: Location, details: string, apiName?: string): WeatherAPIResponse<any> {
+  return errorResponseTemplateService.createLocationNotSupportedError(
+    location, 
+    details, 
+    apiName || 'Google Weather API'
+  );
 }
 ```
 
-#### 3. Error Handling in Weather Methods
+**Enhanced Error Response Format**:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "LOCATION_NOT_SUPPORTED",
+    "message": "Weather information is not available for Tokyo, Japan",
+    "details": "Information is not supported for this location. This location may not be covered by Google Weather API. Consider trying: Tokyo, Osaka.",
+    "suggestions": [
+      "Try nearby supported cities: Tokyo, Osaka", 
+      "Try a nearby major city",
+      "Use latitude/longitude coordinates instead",
+      "Check our supported locations list"
+    ],
+    "severity": "warning",
+    "retryable": false
+  },
+  "timestamp": "2025-08-07T05:26:05.412Z"
+}
+```
+
+#### 4. Comprehensive Error Handling in Weather Methods
 
 ```typescript
 try {
   return await this.weatherClient.getCurrentWeather(request);
 } catch (error: any) {
+  // Handle LOCATION_NOT_SUPPORTED error with enhanced template system
   if (error.name === 'LOCATION_NOT_SUPPORTED') {
-    return this.createLocationNotSupportedResponse(location, error.details || error.message);
+    return this.createLocationNotSupportedResponse(
+      location, 
+      error.details || error.message, 
+      'Google Weather API'
+    );
   }
+  
+  // Handle API access denied errors
+  if (error.name === 'API_ACCESS_DENIED') {
+    return errorResponseTemplateService.createAPIAccessDeniedError(
+      'Google Weather API',
+      error.details || error.message
+    );
+  }
+  
+  // Re-throw other errors
   throw error;
 }
+```
+
+#### 5. Template System Configuration
+
+**Available Error Templates**:
+- `LOCATION_NOT_SUPPORTED`: Geographic coverage limitations
+- `SERVICE_UNAVAILABLE`: Service initialization or availability issues
+- `API_ACCESS_DENIED`: Authentication and authorization failures  
+- `INVALID_LOCATION_FORMAT`: Input validation errors
+- `RATE_LIMIT_EXCEEDED`: API quota and throttling issues
+
+**Template Customization**:
+```typescript
+// Add custom error template
+errorResponseTemplateService.updateTemplate('CUSTOM_ERROR', {
+  code: 'CUSTOM_ERROR',
+  message: 'Custom error for {location}',
+  detailsTemplate: '{details} Please contact support.',
+  suggestions: ['Contact technical support', 'Try again later'],
+  severity: 'error'
+});
+
+// Use custom template
+const customError = errorResponseTemplateService.createErrorResponse(
+  'CUSTOM_ERROR',
+  { location: tokyoLocation },
+  'This is a custom error scenario'
+);
 ```
 
 ## Coverage Status
@@ -188,23 +279,41 @@ const unsupportedLocation = { latitude: 35.6762, longitude: 139.6503, name: 'Tok
 ### For Users
 
 1. **Clear Communication**: No confusion about data authenticity
-2. **Actionable Guidance**: Suggestions for alternative locations
-3. **Improved Trust**: Honest about service limitations
-4. **Better Experience**: Know exactly what to expect
+2. **Enhanced Guidance**: Context-aware suggestions with nearby supported cities
+3. **Improved Trust**: Honest about service limitations with helpful alternatives
+4. **Better Experience**: Severity levels guide user understanding (info/warning/error/critical)
+5. **Actionable Suggestions**: Multiple suggestions ranked by relevance
 
 ### For Developers
 
-1. **Easier Debugging**: Clear error paths and logging
-2. **Simplified Maintenance**: No mock data to maintain
-3. **Production Clarity**: Real vs unavailable data distinction
+1. **Easier Debugging**: Clear error paths with structured logging
+2. **Template-Driven Development**: Consistent error handling patterns across services
+3. **Production Clarity**: Real vs unavailable data distinction with enhanced metadata
 4. **Scalable Approach**: Easy to expand when API coverage grows
+5. **Configurable System**: Update error messages without changing core logic
+6. **Type Safety**: Full TypeScript support with enhanced error response types
 
 ### For Operations
 
-1. **Monitoring Clarity**: Clear metrics on API coverage vs errors
-2. **Support Efficiency**: Users understand limitations before contacting support
+1. **Monitoring Clarity**: Enhanced metrics with severity levels and retry indicators
+2. **Support Efficiency**: Users receive comprehensive guidance before contacting support
 3. **Resource Optimization**: No computational overhead for mock data generation
 4. **Cost Transparency**: Clear understanding of API usage patterns
+5. **Quality Assurance**: Template validation ensures consistent error messaging
+
+### Enterprise Enhancements
+
+#### Error Response Quality
+- **Severity Classification**: Automatic categorization of error impact
+- **Retry Guidance**: Clear indication when users should retry vs contact support
+- **Context-Aware Suggestions**: Geographic intelligence for location alternatives
+- **Template Validation**: Automated checks ensure error message quality
+
+#### Operational Benefits
+- **Internationalization Ready**: Template system supports multiple languages
+- **A/B Testing Compatible**: Easy to test different error message approaches
+- **Analytics Integration**: Structured error data for improved user experience analysis
+- **Compliance Support**: Consistent error messaging helps meet accessibility standards
 
 ## Future Considerations
 
