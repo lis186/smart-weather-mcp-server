@@ -251,9 +251,6 @@ export class GoogleWeatherClient extends GoogleMapsClient {
     return this.createMockWeatherResponse(endpoint, params);
   }
 
-  private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
 
   /**
    * Parse current weather API response

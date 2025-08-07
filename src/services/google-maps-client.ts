@@ -198,7 +198,7 @@ export class GoogleMapsClient {
     return this.client(config);
   }
 
-  private sleep(ms: number): Promise<void> {
+  protected sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
