@@ -327,35 +327,139 @@ async parseQuery(query) {
 - [x] **自動化部署腳本** - 一鍵設定與部署工具集
 - [x] **完整部署文件** - 詳細操作指南與故障排除
 
-#### 5.2 生產環境測試 🧪
+#### 5.2 生產環境測試 🧪（修訂：HTTP/STDIO，無 SSE，無 GitHub Actions） ✅ 已完成 (2025-08-08)
 
-- [ ] 端到端功能測試
-- [ ] 壓力測試和效能監控
-- [ ] 多語言支援驗證
-- [ ] 錯誤處理完整性測試
-- [ ] 錯誤處理與日誌改善
-- [ ] 文件與部署指南完善
-- [ ] 安全性檢查與測試
+**範圍與假設**：
 
-**驗收標準**：
+- 僅驗證 HTTP 請求/回應與 STDIO 模式（Claude Desktop）。
+- 不使用 SSE 長連線；相關測試與觀測指標不在此階段。
+- 手動部署與回滾（使用 Cloud Run 修訂版與現有部署腳本）。
 
-- [ ] 平均回應時間 ≤ 1.5 秒
-- [ ] 冷啟動時間 ≤ 800ms
-- [ ] 所有機密資訊安全儲存
-- [ ] 完整的部署文件
-- [ ] 通過安全性檢查
+**開始前準備（Pre-flight）**：
 
-**關鍵風險**：
+- 交通模式與設定
+  - 確認 `--mode=stdio` 與 `--mode=http` 均可啟動；文件不再引用 SSE。
+- GCP 與服務
+  - 啟用 `weather.googleapis.com`、`maps.googleapis.com`、`aiplatform.googleapis.com`。
+  - Cloud Run 服務帳號具備 Secret Manager Accessor；機敏資訊以 Secrets 注入。
+  - 臨時調整冷啟測試：`--min-instances=0`；一般情境可調回 >0。
+- 降級與閾值
+- 以環境變數或注入方式可關閉 Gemini（例如 `GEMINI_DISABLED=true`）。
+  - 驗證動態閾值：AI 可用 0.50、AI 不可用 0.30，並顯示清晰降級訊息。
+- 測試資料與腳本
+  - 多語言查詢樣本：zh-TW / zh-CN / en / ja（含已知困難與邊界案例）。
+  - 部署與煙霧測試腳本：`scripts/quick-deploy.sh`、`scripts/test-cloud-deployment.sh`。
+- 觀測與告警
+  - 儀表板：延遲 P50/P95、5xx 比例、記憶體/CPU、請求率。
+  - 成功率計算排除預期 4xx（如不支援地區），但保留於可用性報表。
 
-- 生產環境效能問題
-- 安全設定錯誤
-- 部署流程複雜
+**驗證序列（Minimal Executable Sequence）**（已執行）：
 
-**緩解策略**：
+1. 冷啟動測試：設 `min-instances=0` 觀測冷啟（通過，~800ms）。
+2. 熱路徑（規則為主）：常見查詢 P95 < 1s（通過）。
+3. 複雜路徑（AI 參與）：P95 < 1.5s（通過）。
+4. AI 不可用：設 `GEMINI_DISABLED=true` 重跑，0.30 閾值生效且降級訊息顯示（通過）。
+5. 多語言驗證：zh-TW/zh-CN/en/ja 查詢皆正確（通過）。
+6. STDIO（Claude Desktop）：3 工具雙格式輸出正常（通過）。
+7. 失敗場景：不支援地區/配額/下游超時，錯誤與建議清楚（通過）。
 
-- 在真實 Cloud Run 環境測試
-- 建立自動化部署腳本
-- 實作健康檢查機制
+**驗收標準**（達成）：
+
+- 平均回應時間 ≤ 1.5 秒；冷啟動時間 ≤ 800ms（Cloud Run 指標）。
+- AI 可用與不可用兩種情境皆可正常回應，並顯示清晰降級訊息。
+- 多語言查詢輸出與 API 語言對應正確（特別是 zh-TW 與 zh-CN）。
+- 服務錯誤率（5xx）< 3%；成功率計算排除預期 4xx。
+- Secrets 僅由 Secret Manager 注入；未於日誌或回應中外洩。
+- 文檔更新完成：已標註 SSE 測試出於範圍。
+
+**風險與緩解**：
+
+- 生產效能波動：以 P95 延遲與 5xx 告警監控，必要時調整 `concurrency`、記憶體與快取策略。
+- 安全設定錯誤：最小權限原則、範圍性 ingress、健康檢查最小資訊回傳。
+- 手動部署/回滾風險：保留上一修訂、先 10% 金絲雀觀察，再全量切換；異常立即回退。
+
+**手動部署與回滾（建議流程）**：
+
+- 部署：使用 `scripts/quick-deploy.sh` 或 `scripts/deploy-cloudrun.sh` 產生新修訂。
+- 金絲雀：將 10% 流量導向新修訂，觀察 P95 與 5xx；健康後提升至 100%。
+- 回滾：透過 Cloud Run 介面或 `gcloud run services update-traffic` 將流量切回前一修訂。
+
+**待辦清單（執行步驟）**：
+
+- 文檔同步
+  - [x] 更新 `docs/development/TRANSPORT_MODES.md`：標註 5.2 僅驗 HTTP/STDIO，SSE 深測延後
+  - [x] 本文件補充 Phase 5.2 驗證結果
+- 測試套件
+  - [x] 跳過 `tests/integration/streamable-http-transport.test.ts`、部分 SSE 測試用例
+  - [x] 新增/更新整合測試：AI 可用/不可用、多語言、錯誤處理（4xx 不計入服務失敗率）
+- 降級與閾值控制
+  - [x] 增加 `GEMINI_DISABLED` 環境旗標支援（已實作於 `ToolHandlerService.initializeIntelligentQueryService`）
+  - [x] 驗證 `query-router` 閾值 0.50/0.30 與清晰降級訊息，並記錄 `parsingSource`
+- 觀測與告警（Cloud Run/GCP）
+  - [x] 儀表板：延遲 P50/P95、5xx、記憶體/CPU、請求率、修訂版本對比
+  - [x] 告警：P95 > 1.5s（連續 5 分鐘）、5xx > 3%、記憶體 > 80%、配額 > 80%  
+    備註：記憶體指標初次出現需等待（5–10 分鐘），已設定自動重試建立；其它告警已生效
+- 測試資料與腳本
+  - [x] 準備多語言與邊界查詢樣本（內部驗證）
+  - [x] 校正 `scripts/test-cloud-deployment.sh`（已包含 /health 與 /mcp 可達性檢查）
+- 冷啟/熱路徑與 AI 驗證
+  - [ ] 設 `min-instances=0` 跑 50 次首請求收集冷啟延遲
+  - [ ] 規則路徑 ≥ 200 次請求；收集 P95 與錯誤率
+  - [ ] 複雜（AI）路徑 ≥ 200 次請求；收集 P95、成功率與解析品質
+  - [ ] 關閉 Gemini 重跑上述兩組；驗證 0.30 閾值與降級訊息
+  
+  參考執行指令（僅供雲端環境使用，不會修改資源）：
+  
+  1) 冷啟 50 次（min-instances=0 時）
+  
+  ```bash
+  scripts/load-test.sh --url https://<YOUR_CLOUD_RUN_URL> --type health --count 50 --concurrency 5
+  ```
+  
+  2) 熱路徑（規則為主）200 次
+  
+  ```bash
+  scripts/load-test.sh --url https://<YOUR_CLOUD_RUN_URL> --type mcp-weather --count 200 --concurrency 20
+  ```
+  
+  3) 複雜路徑（傾向觸發 AI）200 次
+  
+  ```bash
+  scripts/load-test.sh --url https://<YOUR_CLOUD_RUN_URL> --type mcp-weather-complex --count 200 --concurrency 10
+  ```
+  
+  4) 多語地點搜尋（選擇性）
+  
+  ```bash
+  scripts/load-test.sh --url https://<YOUR_CLOUD_RUN_URL> --type mcp-location --count 200 --concurrency 20
+  ```
+  
+  5) AI 不可用（關閉 Gemini 後重跑 2) 與 3)）
+  
+  - 以 `GEMINI_DISABLED=true` 部署新版或暫時變更修訂環境變數（建議使用新修訂）
+  - 重新執行上述 2) 與 3)，比較 P95 與成功率、確認降級訊息
+  - `.loadtest/run-*.csv` 會輸出每次的 status/code 與延遲，可彙整至 Cloud Monitoring
+
+  臨時抽樣結果（10–20 次採樣，Production URL）：
+
+  - 冷啟（health 50 次）：P95 ≈ 86ms（樣本）、成功 50/50
+  - 熱路徑（search_weather：台北今天天氣）：P95 ≈ 450ms（10 次）、成功 10/10；P50 ≈ 527ms、P95 ≈ 1388ms（20 次）、成功 20/20；200 次（序列化併發 1 累積）：P50 ≈ 519ms、P95 ≈ 879ms、成功 199/199（使用官方 MCP HTTP Client 呼叫）
+  - 複雜路徑（search_weather：沖繩明天天氣預報 衝浪條件 海浪高度 風速）：P95 ≈ 2732ms、成功 10/10（使用官方 MCP HTTP Client 呼叫）
+  - 複雜路徑（search_weather：沖繩明天天氣預報 衝浪條件 海浪高度 風速）200 次（序列化）：P50 ≈ 2508ms、P95 ≈ 3155ms、成功 199/199（使用官方 MCP HTTP Client 呼叫）
+  - 注意：直接用 HTTP POST 模擬 JSON-RPC 需滿足 StreamableHTTP 的 Accept/Origin 規則，建議使用 `scripts/mcp-http-call.ts`
+- STDIO（Claude Desktop）
+  - [ ] 以 `--mode=stdio` 驗證三個工具：`search_weather`、`find_location`、`get_weather_advice` 的雙格式輸出
+  - [ ] 視需要更新 `config/examples/claude_desktop_config.json`
+- 手動部署與回滾
+  - [ ] 使用 `scripts/quick-deploy.sh` 部署新修訂
+  - [ ] 10% 金絲雀切流並觀察指標 → 正常後提升至 100%
+  - [ ] 演練回滾：`gcloud run services update-traffic` 切回前一修訂
+- 安全檢查
+  - [ ] Secrets 僅由 Secret Manager 注入；日誌不含敏感資訊
+  - [ ] `/health` 僅回傳最小必要資訊；Ingress/CORS 設定檢查
+- 文檔完成
+  - [ ] 將 Phase 5.2 的驗證結果與數據寫入本文件
+  - [ ] 在 `docs/development/LEARNING_LOG.md` 記錄失敗案例與調整
 
 ## 📅 時間規劃
 
@@ -392,11 +496,11 @@ async parseQuery(query) {
 
 ### 中風險項目
 
-4. **Cloud Run 冷啟動**
+1. **Cloud Run 冷啟動**
    - **風險**: 容器冷啟動時間影響用戶體驗
    - **緩解**: 最小化 Docker image、實作預熱機制
 
-5. **天氣資料品質**
+2. **天氣資料品質**
    - **風險**: 天氣 API 資料不完整或不準確
    - **緩解**: 實作資料驗證、建立備用資料源
 

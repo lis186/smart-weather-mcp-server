@@ -16,6 +16,8 @@ The Smart Weather MCP Server supports multiple transport modes for different use
 - **Transport**: Streamable HTTP (Server-Sent Events + POST messages)
 - **Best for**: Web apps, REST APIs, workflow automation platforms
 
+Note: For Phase 5.2 production validation, focus is on HTTP request/response and STDIO. See `docs/development/plan.md` Phase 5.2 section.
+
 ## 📋 **Quick Start Examples**
 
 ### Using NPM Scripts (Recommended)

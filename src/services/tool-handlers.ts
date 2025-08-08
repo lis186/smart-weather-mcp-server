@@ -41,9 +41,13 @@ export class ToolHandlerService {
    * Initialize Phase 2+ components with IntelligentQueryService
    */
   private static initializeIntelligentQueryService() {
-    // Initialize Gemini parser first if project ID is available
+    // Respect environment flag to disable Gemini explicitly
+    const geminiDisabled = String(process.env.GEMINI_DISABLED || '').toLowerCase();
+    const isGeminiDisabled = geminiDisabled === 'true' || geminiDisabled === '1' || geminiDisabled === 'yes';
+
+    // Initialize Gemini parser first if project ID is available and not disabled
     const projectId = process.env.GOOGLE_CLOUD_PROJECT;
-    if (projectId && !this.geminiParser) {
+    if (!isGeminiDisabled && projectId && !this.geminiParser) {
       try {
         const geminiClient = new GeminiClient({ projectId });
         this.geminiParser = new GeminiWeatherParser(geminiClient, {
@@ -54,6 +58,9 @@ export class ToolHandlerService {
       } catch (error) {
         logger.warn('Gemini Parser initialization failed', { error: error instanceof Error ? error.message : String(error) });
       }
+    } else if (isGeminiDisabled) {
+      this.geminiParser = null;
+      logger.warn('Gemini AI disabled via GEMINI_DISABLED flag - using simplified rule-based parsing');
     }
 
     // Initialize IntelligentQueryService
