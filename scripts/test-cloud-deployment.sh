@@ -51,13 +51,13 @@ else
 fi
 echo ""
 
-# Test 4: SSE Endpoint Availability
-echo "📋 Test 4: SSE Endpoint Availability"
-sse_response=$(curl -s -I "$SERVICE_URL/mcp" | head -n 1)
-if echo "$sse_response" | grep -q "200\|101"; then
-    echo "✅ SSE endpoint available"
+# Test 4: Streamable HTTP Endpoint Availability
+echo "📋 Test 4: Streamable HTTP Endpoint Availability"
+mcp_response=$(curl -s -I "$SERVICE_URL/mcp" | head -n 1)
+if echo "$mcp_response" | grep -q "200\|101"; then
+    echo "✅ Streamable HTTP endpoint available"
 else
-    echo "⚠️  SSE endpoint status: $sse_response"
+    echo "⚠️  Streamable HTTP endpoint status: $mcp_response"
 fi
 echo ""
 
@@ -75,8 +75,7 @@ echo '   "smart-weather-mcp-server-cloud": {'
 echo '     "command": "npx",'
 echo '     "args": ['
 echo '       "-y",'
-echo '       "@modelcontextprotocol/client-stdio",'
-echo '       "sse",'
+echo '       "mcp-remote",'
 echo "       \"$SERVICE_URL/mcp\""
 echo '     ]'
 echo '   }'
