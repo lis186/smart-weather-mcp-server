@@ -75,7 +75,7 @@ describe('Dual Transport Integration', () => {
     it('should establish SSE connection', async () => {
       // This is a basic test to ensure the SSE endpoint exists
       // Full SSE testing would require more complex setup
-      const response = await axios.get(`http://${testHost}:${testPort}/sse`, {
+      const response = await axios.get(`http://${testHost}:${testPort}/mcp`, {
         timeout: 1000,
         responseType: 'stream'
       }).catch(error => {
@@ -179,7 +179,7 @@ describe('Dual Transport Integration', () => {
 
     it('should handle malformed requests gracefully', async () => {
       try {
-        await axios.post(`http://${testHost}:${testPort}/sse`, { invalid: 'data' });
+        await axios.post(`http://${testHost}:${testPort}/mcp`, { invalid: 'data' });
       } catch (error: any) {
         // Should not crash the server, should return appropriate error
         expect(error.response.status).toBeGreaterThanOrEqual(400);

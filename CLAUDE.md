@@ -22,7 +22,7 @@ This is a Smart Weather MCP Server designed for Google Cloud Run deployment. The
 
 - `npm start` - Run production unified server (default mode)
 - `npm run start:stdio` - Production STDIO mode for Claude Desktop
-- `npm run start:http` - Production HTTP/SSE mode for web clients
+- `npm run start:http` - Production Streamable HTTP mode for web clients
 
 ### Testing Commands
 
@@ -35,7 +35,7 @@ This is a Smart Weather MCP Server designed for Google Cloud Run deployment. The
 
 - `node dist/unified-server.js` - Auto-detect mode (default STDIO)
 - `node dist/unified-server.js --mode=stdio` - STDIO mode for Claude Desktop
-- `node dist/unified-server.js --mode=http --port=8080` - HTTP/SSE mode for web clients
+- `node dist/unified-server.js --mode=http --port=8080` - Streamable HTTP mode for web clients
 - `node dist/unified-server.js --mode=http --host=0.0.0.0 --port=8080` - Production HTTP mode
 
 ### Docker Commands  
@@ -59,11 +59,11 @@ gcloud run deploy smart-weather-mcp --image gcr.io/PROJECT_ID/smart-weather-mcp 
 
 **Phase 1 Production-Ready Features** (✅ Completed):
 
-- ✅ **Enterprise Dual Transport**: STDIO (Claude Desktop) + HTTP/SSE (n8n, web clients)
+- ✅ **Enterprise Dual Transport**: STDIO (Claude Desktop) + Streamable HTTP (n8n, web clients)
 - ✅ **Unified Server Architecture**: Single codebase, command-line mode switching
 - ✅ **Production MCP Tools**: 3 tools, unified parameters, runtime validation
 - ✅ **Advanced Logging System**: Multi-level structured logging with context
-- ✅ **Connection Pool Management**: SSE connection pooling, automatic cleanup, memory optimization
+- ✅ **Connection Pool Management**: Streamable HTTP connection pooling, automatic cleanup, memory optimization
 - ✅ **Security Integration**: Google Cloud Secret Manager, environment separation
 - ✅ **Production HTTP Server**: Health checks, error handling, CORS, graceful shutdown
 - ✅ **Input Validation & Security**: Runtime sanitization, parameter limits, type safety
@@ -105,12 +105,12 @@ gcloud run deploy smart-weather-mcp --image gcr.io/PROJECT_ID/smart-weather-mcp 
 - **HTTP Server**: Express.js for Cloud Run HTTP endpoints
 - **AI Parser**: Google Gemini 2.5 Flash-Lite via Vertex AI
 - **Weather API**: Google Weather API (weather.googleapis.com/v1) ✅ ACTIVE
-- **Transport**: Dual support - STDIO for Claude Desktop, HTTP/SSE for web clients
+- **Transport**: Dual support - STDIO for Claude Desktop, Streamable HTTP for web clients
 
 ### Cloud Run Specific Features
 
 - **Health Check Endpoint**: `/health` for Cloud Run monitoring
-- **SSE Transport**: `/sse` for MCP client connections  
+- **Streamable HTTP Transport**: `/mcp` endpoint for MCP client connections  
 - **Secret Manager**: Secure API key management
 - **Auto-scaling**: 0 to N instances based on demand
 

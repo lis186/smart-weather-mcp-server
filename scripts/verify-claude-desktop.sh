@@ -46,7 +46,7 @@ echo '      "command": "npx",'
 echo '      "args": ['
 echo '        "-y",'
 echo '        "mcp-remote",'
-echo "        \"$SERVICE_URL/sse\""
+echo "        \"$SERVICE_URL/mcp\""
 echo '      ]'
 echo '    }'
 echo '  }'

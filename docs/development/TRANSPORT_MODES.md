@@ -9,9 +9,9 @@ The Smart Weather MCP Server supports multiple transport modes for different use
 - **Transport**: Standard Input/Output with JSON-RPC
 - **Best for**: Claude Desktop, MCP CLI tools, desktop applications
 
-### 2. **HTTP/SSE Mode** 
+### 2. **Streamable HTTP Mode** 
 - **Purpose**: Web applications, browser integration, n8n workflows
-- **Transport**: HTTP with Server-Sent Events (SSE)
+- **Transport**: Streamable HTTP (Server-Sent Events + POST messages)
 - **Best for**: Web apps, REST APIs, workflow automation platforms
 
 ## 📋 **Quick Start Examples**
@@ -138,7 +138,7 @@ node dist/unified-server.js --mode=http --port=8080 &
 # Test endpoints
 curl http://localhost:8080/health
 curl http://localhost:8080/
-curl http://localhost:8080/sse  # SSE endpoint for MCP clients
+curl http://localhost:8080/mcp  # Streamable HTTP endpoint for MCP clients
 ```
 
 ## 🚨 **Troubleshooting**

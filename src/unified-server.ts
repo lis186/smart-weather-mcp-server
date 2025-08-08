@@ -2,7 +2,7 @@
 
 /**
  * Unified Smart Weather MCP Server
- * Supports multiple transport modes: STDIO, HTTP/SSE
+ * Supports multiple transport modes: STDIO, Streamable HTTP
  * Usage:
  *   node dist/unified-server.js --mode=stdio
  *   node dist/unified-server.js --mode=http --port=8080
@@ -70,7 +70,7 @@ Examples:
   # STDIO mode (for Claude Desktop)
   node dist/unified-server.js --mode=stdio
 
-  # HTTP/SSE mode (for web clients)
+  # Streamable HTTP mode (for web clients)
   node dist/unified-server.js --mode=http --port=8080
 
   # HTTP mode with custom host
@@ -140,7 +140,7 @@ async function startHTTPServer(host: string, port: number): Promise<void> {
 
     config.secrets = secrets;
 
-    // Start Express server with HTTP/SSE transport
+    // Start Express server with Streamable HTTP transport
     const expressServer = new ExpressServer(config);
     await expressServer.start();
 

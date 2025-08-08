@@ -53,7 +53,7 @@ echo ""
 
 # Test 4: SSE Endpoint Availability
 echo "📋 Test 4: SSE Endpoint Availability"
-sse_response=$(curl -s -I "$SERVICE_URL/sse" | head -n 1)
+sse_response=$(curl -s -I "$SERVICE_URL/mcp" | head -n 1)
 if echo "$sse_response" | grep -q "200\|101"; then
     echo "✅ SSE endpoint available"
 else
@@ -77,7 +77,7 @@ echo '     "args": ['
 echo '       "-y",'
 echo '       "@modelcontextprotocol/client-stdio",'
 echo '       "sse",'
-echo "       \"$SERVICE_URL/sse\""
+echo "       \"$SERVICE_URL/mcp\""
 echo '     ]'
 echo '   }'
 echo ""

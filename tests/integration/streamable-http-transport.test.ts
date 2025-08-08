@@ -3,7 +3,7 @@ import { ExpressServer } from '../../src/core/express-server';
 import { ServerConfig } from '../../src/types/index';
 import { getAvailablePort } from '../test-utils';
 
-describe('SSE/StreamableHTTP Transport Integration', () => {
+describe('Streamable HTTP Transport Integration', () => {
   let server: ExpressServer;
   let testPort: number;
   const testHost = 'localhost';
@@ -34,10 +34,10 @@ describe('SSE/StreamableHTTP Transport Integration', () => {
     await new Promise(resolve => setTimeout(resolve, 100));
   });
 
-  describe('SSE Stream Endpoint', () => {
+  describe('Streamable HTTP Endpoint', () => {
     it('should establish SSE connection with proper headers', async () => {
       try {
-        const response = await axios.get(`${baseUrl}/sse`, {
+        const response = await axios.get(`${baseUrl}/mcp`, {
           headers: {
             'Accept': 'text/event-stream,application/json'
           },
@@ -65,7 +65,7 @@ describe('SSE/StreamableHTTP Transport Integration', () => {
 
     it('should reject SSE requests without text/event-stream accept header', async () => {
       try {
-        await axios.get(`${baseUrl}/sse`, {
+        await axios.get(`${baseUrl}/mcp`, {
           headers: {
             'Accept': 'application/json'
           }
@@ -100,7 +100,7 @@ describe('SSE/StreamableHTTP Transport Integration', () => {
       };
 
       try {
-        const response = await axios.post(`${baseUrl}/sse`, initRequest, {
+        const response = await axios.post(`${baseUrl}/mcp`, initRequest, {
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json, text/event-stream'
@@ -131,7 +131,7 @@ describe('SSE/StreamableHTTP Transport Integration', () => {
       };
 
       try {
-        const response = await axios.post(`${baseUrl}/sse`, toolsListRequest, {
+        const response = await axios.post(`${baseUrl}/mcp`, toolsListRequest, {
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json, text/event-stream'
@@ -159,7 +159,7 @@ describe('SSE/StreamableHTTP Transport Integration', () => {
 
     it('should handle tool call request', async () => {
       // First initialize
-      await axios.post(`${baseUrl}/sse`, {
+      await axios.post(`${baseUrl}/mcp`, {
         jsonrpc: '2.0',
         id: 10,
         method: 'initialize',
@@ -188,7 +188,7 @@ describe('SSE/StreamableHTTP Transport Integration', () => {
       };
 
       try {
-        const response = await axios.post(`${baseUrl}/sse`, toolCallRequest, {
+        const response = await axios.post(`${baseUrl}/mcp`, toolCallRequest, {
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json, text/event-stream'
@@ -217,7 +217,7 @@ describe('SSE/StreamableHTTP Transport Integration', () => {
       // Send multiple initialize requests concurrently
       for (let i = 0; i < 5; i++) {
         requests.push(
-          axios.post(`${baseUrl}/sse`, {
+          axios.post(`${baseUrl}/mcp`, {
             jsonrpc: '2.0',
             id: 100 + i,
             method: 'initialize',
@@ -249,7 +249,7 @@ describe('SSE/StreamableHTTP Transport Integration', () => {
 
     it('should not require session ID for requests', async () => {
       // Direct POST without any session management
-      const response = await axios.post(`${baseUrl}/sse`, {
+      const response = await axios.post(`${baseUrl}/mcp`, {
         jsonrpc: '2.0',
         id: 200,
         method: 'tools/list',
@@ -271,7 +271,7 @@ describe('SSE/StreamableHTTP Transport Integration', () => {
   describe('Error Handling', () => {
     it('should handle invalid JSON-RPC requests', async () => {
       try {
-        const response = await axios.post(`${baseUrl}/sse`, {
+        const response = await axios.post(`${baseUrl}/mcp`, {
           invalid: 'request'
         });
         
@@ -291,7 +291,7 @@ describe('SSE/StreamableHTTP Transport Integration', () => {
 
     it('should handle unsupported methods with DELETE', async () => {
       try {
-        await axios.delete(`${baseUrl}/sse`);
+        await axios.delete(`${baseUrl}/mcp`);
         fail('Should have rejected DELETE method');
       } catch (error) {
         if (axios.isAxiosError(error)) {

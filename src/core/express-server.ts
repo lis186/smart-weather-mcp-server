@@ -49,11 +49,11 @@ export class ExpressServer {
 
   private async setupMCPTransport(): Promise<void> {
     // Create a single StreamableHTTP transport for all connections
-    // Using stateless mode for simplicity (no session management)
+    // Using stateless mode for Cloud Run compatibility
     this.globalTransport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined, // Stateless mode
+      sessionIdGenerator: undefined, // Stateless mode for Cloud Run
       enableJsonResponse: true,
-      enableDnsRebindingProtection: false,
+      enableDnsRebindingProtection: false, // Disable for Cloud Run/remote access
     });
 
     // Create a single MCP server instance
@@ -98,7 +98,7 @@ export class ExpressServer {
         description: 'AI-powered weather query MCP server with natural language understanding',
         endpoints: {
           health: '/health',
-          sse: '/sse',
+          mcp: '/mcp',
         },
         tools: [
           'search_weather',
@@ -108,8 +108,8 @@ export class ExpressServer {
       });
     });
 
-    // Unified SSE endpoint for both GET (SSE stream) and POST (messages)
-    this.app.all('/sse', async (req: Request, res: Response) => {
+    // Streamable HTTP endpoint for MCP - handles both GET (SSE stream) and POST (messages)
+    this.app.all('/mcp', async (req: Request, res: Response) => {
       try {
         if (!this.globalTransport) {
           await this.setupMCPTransport();
@@ -137,7 +137,7 @@ export class ExpressServer {
       res.status(404).json({
         error: 'Endpoint not found',
         path: req.originalUrl,
-        availableEndpoints: ['/', '/health', '/sse'],
+        availableEndpoints: ['/', '/health', '/mcp'],
       });
     });
 

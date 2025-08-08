@@ -37,7 +37,7 @@ Use the hosted version via mcp-remote:
 {
   "smart-weather-cloud": {
     "command": "npx",
-    "args": ["-y", "mcp-remote", "https://smart-weather-mcp-server-891745610397.asia-east1.run.app/sse"]
+    "args": ["-y", "mcp-remote", "https://smart-weather-mcp-server-891745610397.asia-east1.run.app/mcp"]
   }
 }
 ```
@@ -48,7 +48,7 @@ Use the hosted version via mcp-remote:
 - **Multi-language support**: Chinese, Japanese, English
 - **Real weather data**: Google Weather API integration
 - **Smart caching**: 5min weather, 30min forecasts, 7-day locations
-- **Dual deployment**: Local (STDIO) or Cloud (HTTP/SSE)
+- **Dual deployment**: Local (STDIO) or Cloud (Streamable HTTP)
 
 ## Available Tools
 
@@ -103,7 +103,7 @@ npm run docker:run
 ## API Endpoints
 
 - `/health` - Health check
-- `/sse` - MCP client connections
+- `/mcp` - MCP client connections
 - `/` - Service info
 
 ## Architecture

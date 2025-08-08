@@ -108,7 +108,7 @@ describe('ExpressServer', () => {
           description: 'AI-powered weather query MCP server with natural language understanding',
           endpoints: {
             health: '/health',
-            sse: '/sse'
+            mcp: '/mcp'
           },
           tools: [
             'search_weather',
@@ -140,7 +140,7 @@ describe('ExpressServer', () => {
             expect(error.response.status).toBe(404);
             expect(error.response.data.error).toContain('Endpoint not found');
             expect(error.response.data.path).toBe('/unknown-endpoint');
-            expect(error.response.data.availableEndpoints).toEqual(['/', '/health', '/sse']);
+            expect(error.response.data.availableEndpoints).toEqual(['/', '/health', '/mcp']);
           } else if (error.code === 'ECONNREFUSED') {
             console.warn('Server connection refused - skipping integration test');
           } else {
@@ -182,7 +182,7 @@ describe('ExpressServer', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
       
       try {
-        const response = await axios.get(`http://${testHost}:${testPort}/sse`, {
+        const response = await axios.get(`http://${testHost}:${testPort}/mcp`, {
           headers: {
             'Accept': 'text/event-stream'
           },
@@ -211,7 +211,7 @@ describe('ExpressServer', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
       
       try {
-        await axios.get(`http://${testHost}:${testPort}/sse`, {
+        await axios.get(`http://${testHost}:${testPort}/mcp`, {
           headers: {
             'Accept': 'application/json'  // Wrong accept header
           }
@@ -234,7 +234,7 @@ describe('ExpressServer', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
       
       try {
-        const response = await axios.post(`http://${testHost}:${testPort}/sse`, 
+        const response = await axios.post(`http://${testHost}:${testPort}/mcp`, 
           {
             jsonrpc: '2.0',
             id: 1,

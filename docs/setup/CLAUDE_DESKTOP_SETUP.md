@@ -177,7 +177,7 @@ Phase 5.1 完成後，您可以選擇使用已部署到 Google Cloud Run 的版�
       "args": [
         "-y",
         "mcp-remote",
-        "https://smart-weather-mcp-server-891745610397.asia-east1.run.app/sse"
+        "https://smart-weather-mcp-server-891745610397.asia-east1.run.app/mcp"
       ]
     }
   }

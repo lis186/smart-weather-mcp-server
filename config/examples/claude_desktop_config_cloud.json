@@ -15,7 +15,7 @@
       "args": [
         "-y",
         "mcp-remote",
-        "https://smart-weather-mcp-server-891745610397.asia-east1.run.app/sse"
+        "https://smart-weather-mcp-server-891745610397.asia-east1.run.app/mcp"
       ]
     }
   }
