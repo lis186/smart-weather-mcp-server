@@ -72,7 +72,16 @@ export class SecretManager {
 
     try {
       const name = `projects/${this.projectId}/secrets/${secretName}/versions/latest`;
-      const [version] = await this.client.accessSecretVersion({ name });
+      
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Secret fetch timeout')), 10000); // 10 second timeout
+      });
+      
+      const [version] = await Promise.race([
+        this.client.accessSecretVersion({ name }),
+        timeoutPromise
+      ]);
       
       if (version.payload?.data) {
         return version.payload.data.toString();

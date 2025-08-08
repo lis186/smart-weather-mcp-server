@@ -2,7 +2,7 @@
 
 /**
  * Unified Smart Weather MCP Server
- * Supports multiple transport modes: STDIO, HTTP/SSE
+ * Supports multiple transport modes: STDIO, Streamable HTTP
  * Usage:
  *   node dist/unified-server.js --mode=stdio
  *   node dist/unified-server.js --mode=http --port=8080
@@ -70,7 +70,7 @@ Examples:
   # STDIO mode (for Claude Desktop)
   node dist/unified-server.js --mode=stdio
 
-  # HTTP/SSE mode (for web clients)
+  # Streamable HTTP mode (for web clients)
   node dist/unified-server.js --mode=http --port=8080
 
   # HTTP mode with custom host
@@ -122,18 +122,25 @@ async function startHTTPServer(host: string, port: number): Promise<void> {
     });
 
     // Initialize Secret Manager
+    logger.info('Initializing Secret Manager', { environment: config.environment });
     const secretManager = new SecretManager();
+    
+    logger.info('Loading secrets...');
     const secrets = await secretManager.loadSecrets();
+    
+    logger.info('Validating secrets...');
     const secretsValid = await secretManager.validateSecrets(secrets);
 
-    if (!secretsValid && config.environment === 'production') {
-      logger.error('Failed to validate required secrets in production environment');
-      process.exit(1);
+    if (!secretsValid) {
+      logger.warn('Some secrets validation failed - continuing with available secrets', {
+        environment: config.environment,
+        secretsLoaded: !!secrets
+      });
     }
 
     config.secrets = secrets;
 
-    // Start Express server with HTTP/SSE transport
+    // Start Express server with Streamable HTTP transport
     const expressServer = new ExpressServer(config);
     await expressServer.start();
 
@@ -181,8 +188,8 @@ async function main(): Promise<void> {
       break;
 
     case 'http':
-      const host = args.host || '0.0.0.0';
-      const port = args.port || 8080;
+      const host = args.host || process.env.HOST || '0.0.0.0';
+      const port = args.port || parseInt(process.env.PORT || '8080', 10);
       await startHTTPServer(host, port);
       break;
 

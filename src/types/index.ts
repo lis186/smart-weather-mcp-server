@@ -17,7 +17,7 @@ export interface WeatherResponse {
 export interface ServerConfig {
   port: number;
   host: string;
-  environment: 'development' | 'production';
+  environment: 'development' | 'production' | 'test';
   secrets?: {
     geminiApiKey?: string;
     weatherApiKey?: string;

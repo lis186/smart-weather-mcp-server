@@ -110,7 +110,7 @@ export class Logger {
       environment,
       endpoints: {
         health: `http://${host}:${port}/health`,
-        sse: `http://${host}:${port}/sse`
+        mcp: `http://${host}:${port}/mcp`
       }
     });
   }

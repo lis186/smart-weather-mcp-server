@@ -5,13 +5,15 @@ The Smart Weather MCP Server supports multiple transport modes for different use
 ## 🔄 Available Transport Modes
 
 ### 1. **STDIO Mode** (Default)
+
 - **Purpose**: Claude Desktop integration, command-line MCP clients
 - **Transport**: Standard Input/Output with JSON-RPC
 - **Best for**: Claude Desktop, MCP CLI tools, desktop applications
 
-### 2. **HTTP/SSE Mode** 
+### 2. **Streamable HTTP Mode**
+
 - **Purpose**: Web applications, browser integration, n8n workflows
-- **Transport**: HTTP with Server-Sent Events (SSE)
+- **Transport**: Streamable HTTP (Server-Sent Events + POST messages)
 - **Best for**: Web apps, REST APIs, workflow automation platforms
 
 ## 📋 **Quick Start Examples**
@@ -138,7 +140,7 @@ node dist/unified-server.js --mode=http --port=8080 &
 # Test endpoints
 curl http://localhost:8080/health
 curl http://localhost:8080/
-curl http://localhost:8080/sse  # SSE endpoint for MCP clients
+curl http://localhost:8080/mcp  # Streamable HTTP endpoint for MCP clients
 ```
 
 ## 🚨 **Troubleshooting**
@@ -146,22 +148,28 @@ curl http://localhost:8080/sse  # SSE endpoint for MCP clients
 ### Common Issues
 
 **1. STDIO JSON Parsing Errors**
+
 ```
 Unexpected token 'L', "Loading se"... is not valid JSON
 ```
+
 - **Cause**: Debug logs going to stdout
 - **Solution**: Logs are now redirected to stderr automatically
 
 **2. HTTP Port Already in Use**
+
 ```
 Error: listen EADDRINUSE :::8080
 ```
+
 - **Solution**: Use different port: `--port=8081`
 
 **3. Claude Desktop Not Recognizing Server**
+
 ```
 Server failed to start
 ```
+
 - **Check**: Absolute path in `claude_desktop_config.json`
 - **Check**: File permissions: `chmod +x dist/unified-server.js`
 
@@ -187,6 +195,7 @@ node dist/unified-server.js --mode=http --port=8080 2>&1 | grep -v "Loading secr
 ### From Separate Entry Points
 
 **Old way:**
+
 ```bash
 # Two separate files
 node dist/mcp-stdio.js       # STDIO only
@@ -194,6 +203,7 @@ node dist/server.js          # HTTP only
 ```
 
 **New way:**
+
 ```bash
 # One unified server
 node dist/unified-server.js --mode=stdio  # STDIO
@@ -203,11 +213,13 @@ node dist/unified-server.js --mode=http   # HTTP
 ### Updating Claude Desktop Config
 
 **Before:**
+
 ```json
 "args": ["/path/to/dist/mcp-stdio.js"]
 ```
 
 **After:**
+
 ```json
 "args": [
   "/path/to/dist/unified-server.js",

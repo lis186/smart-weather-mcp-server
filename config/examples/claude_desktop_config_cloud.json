@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "smart-weather-mcp-server": {
+      "command": "node",
+      "args": [
+        "/Users/justinlee/dev/smart-weather-mcp-server/dist/unified-server.js",
+        "--mode=stdio"
+      ],
+      "env": {
+        "NODE_ENV": "production"
+      }
+    },
+    "smart-weather-mcp-server-cloud": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://smart-weather-mcp-server-891745610397.asia-east1.run.app/mcp"
+      ]
+    }
+  }
+}

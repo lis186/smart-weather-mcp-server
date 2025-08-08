@@ -2,9 +2,10 @@ import { spawn, ChildProcess } from 'child_process';
 import axios from 'axios';
 import { SmartWeatherMCPServer } from '../../src/core/mcp-server';
 import { ExpressServer } from '../../src/core/express-server';
+import { getAvailablePort } from '../test-utils';
 
 describe('Dual Transport Integration', () => {
-  const testPort = 8081;
+  let testPort: number;
   const testHost = 'localhost';
   let httpServer: ExpressServer;
   let stdioProcess: ChildProcess;
@@ -18,6 +19,8 @@ describe('Dual Transport Integration', () => {
 
   describe('HTTP/SSE Transport Mode', () => {
     beforeEach(async () => {
+      testPort = await getAvailablePort();
+      
       const config = {
         port: testPort,
         host: testHost,
@@ -72,7 +75,7 @@ describe('Dual Transport Integration', () => {
     it('should establish SSE connection', async () => {
       // This is a basic test to ensure the SSE endpoint exists
       // Full SSE testing would require more complex setup
-      const response = await axios.get(`http://${testHost}:${testPort}/sse`, {
+      const response = await axios.get(`http://${testHost}:${testPort}/mcp`, {
         timeout: 1000,
         responseType: 'stream'
       }).catch(error => {
@@ -128,6 +131,8 @@ describe('Dual Transport Integration', () => {
   describe('Transport Mode Consistency', () => {
     it('should have consistent tool definitions across transports', async () => {
       // Test HTTP mode
+      testPort = await getAvailablePort();
+      
       const config = {
         port: testPort,
         host: testHost,
@@ -156,6 +161,8 @@ describe('Dual Transport Integration', () => {
 
   describe('Error Handling', () => {
     beforeEach(async () => {
+      testPort = await getAvailablePort();
+      
       const config = {
         port: testPort,
         host: testHost,
@@ -172,7 +179,7 @@ describe('Dual Transport Integration', () => {
 
     it('should handle malformed requests gracefully', async () => {
       try {
-        await axios.post(`http://${testHost}:${testPort}/sse`, { invalid: 'data' });
+        await axios.post(`http://${testHost}:${testPort}/mcp`, { invalid: 'data' });
       } catch (error: any) {
         // Should not crash the server, should return appropriate error
         expect(error.response.status).toBeGreaterThanOrEqual(400);

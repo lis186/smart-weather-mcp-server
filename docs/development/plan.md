@@ -51,7 +51,7 @@
 
 - [x] Express 伺服器可在本地啟動
 - [x] `/health` 端點正常回應
-- [x] `/sse` 端點可建立 MCP 連線
+- [x] `/mcp` 端點可建立 MCP 連線
 - [x] Docker 容器可成功建置
 - [x] 可部署至 Cloud Run 並正常運行
 
@@ -169,7 +169,7 @@
 **🛠️ 階段 2.1 解析優化計劃**：
 
 1. **簡化規則模式** - 專注 80/20 法則，時間表達和常見活動 ✅ 已完成
-2. **實現 AI Fallback** - Rule-based first, AI fallback for complex cases ✅ 已完成 
+2. **實現 AI Fallback** - Rule-based first, AI fallback for complex cases ✅ 已完成
 3. **優化信心度閾值** - 調整 confidence threshold 和合併邏輯 ✅ 已完成
 4. **TDD 驗證** - 建立失敗測試 → 實現混合架構 → 驗證修正 ✅ 已完成
 
@@ -251,6 +251,7 @@ async parseQuery(query) {
 #### 4.1 search_weather 工具 🔍 ✅ **PHASE 4.1 完整完成 + 誠實透明度** (2025-08-07)
 
 **Google Weather API 整合完成**：
+
 - [x] 註冊 MCP 工具定義
 - [x] 實現工具調用處理器  
 - [x] 整合 Gemini 解析和 API 路由
@@ -263,6 +264,7 @@ async parseQuery(query) {
 - [x] **認證管理**：生產級 API 密鑰管理
 
 **Phase 4.1 最終成果 + 誠實透明度**：
+
 - ✅ **端到端整合**：從 MCP 工具調用到真實 Google Weather API 回應
 - ✅ **地理覆蓋驗證**：確認支援地區並測試所有場景
 - ✅ **生產就緒**：完整錯誤處理、認證、透明度機制
@@ -315,12 +317,15 @@ async parseQuery(query) {
 
 **目標**：完成生產環境部署準備與效能最佳化
 
-#### 5.1 容器化和 CI/CD 🚀
+#### 5.1 容器化和 CI/CD 🚀 ✅ **PHASE 5.1 完成** (2025-08-07)
 
-- [ ] 完善 Dockerfile 配置
-- [ ] 設置 GitHub Actions 部署
-- [ ] 配置 Cloud Build 腳本
-- [ ] 效能調優與監控
+- [x] **多階段 Dockerfile 優化** - 建置階段分離，生產映像最小化，直接執行 node
+- [x] **GitHub Actions CI/CD** - 完整 workflow：test → build → push → deploy
+- [x] **Workload Identity Federation** - 安全的 GitHub → GCP 認證，無需 JSON 密鑰
+- [x] **Service Account 權限設定** - 最小權限原則，支援 Cloud Run + Artifact Registry
+- [x] **Secret Manager 整合** - API 密鑰安全儲存與 Cloud Run 注入
+- [x] **自動化部署腳本** - 一鍵設定與部署工具集
+- [x] **完整部署文件** - 詳細操作指南與故障排除
 
 #### 5.2 生產環境測試 🧪
 
@@ -488,6 +493,7 @@ async parseQuery(query) {
 ### 最終驗收
 
 **Phase 4.1 完成狀態**：
+
 - [x] search_weather MCP 工具正常運作並整合真實 Google Weather API
 - [x] 通過效能和可靠性測試（綜合測試套件）
 - [x] 實際天氣數據整合與優雅降級機制驗證
@@ -495,15 +501,55 @@ async parseQuery(query) {
 - [x] Google Weather API 認證和錯誤處理機制建立
 
 **✅ Phase 4.2 完成狀態** (2025-08-07)：
+
 - [x] **find_location 工具完成** - 混合 AI + 規則解析，Google Maps 整合，JSON + 文字雙格式輸出
 - [x] **get_weather_advice 工具完成** - GeminiWeatherAdvisor 服務，多語言建議生成，規則 fallback
 - [x] **綜合測試套件** - 23 項單元測試，22 項通過，涵蓋錯誤處理、多語言、MCP 合規性
 - [x] **MCP 設計哲學合規** - 3 工具、統一參數、用戶中心命名、可行動建議
 
 **Phase 4.3+ 待完成**：
-- [ ] Cloud Run 生產環境最終部署測試  
+
 - [ ] 監控和告警機制建立
 - [ ] 效能最佳化與快取調優
+
+### 階段 5: Cloud Run 部署與 CI/CD ✅ 已完成 (2025-08-07)
+
+**目標**：建立完整的容器化部署和 CI/CD 流程
+
+**實際成果**：成功部署到 Google Cloud Run，實現 SSE 支援和 Claude Desktop 整合
+
+#### 5.1 容器化與基礎設施 ✅
+
+- [x] **Docker 容器化**: 多階段建置，映像最小化
+- [x] **架構修正**: 解決 ARM64 → x86_64 架構不匹配問題
+- [x] **GCP 環境設定**: Project ID striped-history-467517-m3, Region asia-east1
+- [x] **Artifact Registry**: 映像儲存庫建立與管理
+- [x] **Service Account**: GitHub Actions 部署權限設定
+- [x] **Workload Identity**: 安全的 GitHub → GCP 認證
+- [x] **Secret Manager**: API Keys 安全儲存與自動載入
+
+#### 5.2 SSE 傳輸實作 ✅
+
+- [x] **StreamableHTTPServerTransport**: 替換 SSEServerTransport
+- [x] **無狀態架構**: Stateless mode 簡化 session 管理
+- [x] **統一端點**: `/mcp` 處理 GET (事件流) 和 POST (messages)
+- [x] **mcp-remote 相容性**: Claude Desktop 透過 mcp-remote 成功連接
+- [x] **n8n 整合支援**: SSE streaming 正常運作
+
+**部署成果**：
+
+- 🌐 **Production URL**: <https://smart-weather-mcp-server-891745610397.asia-east1.run.app>
+- ✅ **健康檢查**: `/health` 端點正常
+- ✅ **MCP 工具**: 3 個工具全部可用
+- ✅ **Claude Desktop**: 透過 mcp-remote 成功整合
+- ✅ **測試覆蓋**: 新增 SSE transport 整合測試
+
+**Phase 5.1 學習總結**：
+
+- SSE 實作需使用 StreamableHTTPServerTransport 而非 SSEServerTransport
+- Stateless mode 更適合 Cloud Run 的無狀態架構
+- mcp-remote 需要正確的 HTTP transport 實作才能運作
+- Docker 建置需指定 `--platform linux/amd64` 避免架構問題
 
 ---
 

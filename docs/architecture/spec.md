@@ -48,7 +48,7 @@ graph TB
     
     subgraph "Transport Layer"
         D[STDIO Transport]
-        E[HTTP/SSE Transport]
+        E[StreamableHTTP Transport]
     end
     
     subgraph "Smart Weather MCP Server"
@@ -89,7 +89,7 @@ graph TB
         subgraph "Container Runtime"
             D --> E[Express HTTP Server]
             E --> F[Health Check Endpoint]
-            E --> G[SSE Transport Handler]
+            E --> G[StreamableHTTP Handler (/mcp)]
             G --> H[3個MCP工具: search_weather, find_location, get_weather_advice]
             H --> I[查詢解析層]
             I --> J[Gemini AI 解析]
@@ -120,8 +120,8 @@ graph TB
 | **Unified Server** | 傳輸模式切換 | ✅ 已完成 | 命令行參數解析 |
 | **Express HTTP Server** | HTTP 服務和路由 | ✅ 已完成 | Express.js 4.18+ |
 | **Health Check Endpoint** | Cloud Run 健康檢查 | ✅ 已完成 | HTTP GET /health |
-| **SSE Transport Handler** | MCP 協議通信 | ✅ 已完成 | MCP TypeScript SDK |
-| **STDIO Transport Handler** | Claude Desktop 支援 | ✅ 已完成 | MCP TypeScript SDK |
+| **StreamableHTTP Transport** | MCP 協議通信 (SSE+POST) | ✅ 已完成 | StreamableHTTPServerTransport |
+| **STDIO Transport Handler** | Claude Desktop 支援 | ✅ 已完成 | StdioServerTransport |
 | **統一工具處理器** | 3個工具的統一入口 | ✅ 已完成 | TypeScript 類別 |
 | **Secret Manager 客戶端** | 密鑰管理 | ✅ 已完成 | @google-cloud/secret-manager |
 | **記憶體快取** | 基礎快取框架 | ✅ 已完成 | JavaScript Map |
@@ -711,7 +711,7 @@ CACHE_TTL_SECONDS=300
 ```typescript
 // server.ts - Cloud Run 專用實現
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { SecretManagerServiceClient } from "@google-cloud/secret-manager";
 import express from "express";
 import cors from "cors";
@@ -754,43 +754,19 @@ async function main() {
     });
   });
   
-  // 儲存 SSE 連接
-  const transports: Record<string, SSEServerTransport> = {};
-  
-  // SSE 端點
-  app.get('/sse', async (req, res) => {
+  // 統一 MCP 端點（GET 事件流 / POST 訊息）
+  app.all('/mcp', async (req, res) => {
     try {
-      const transport = new SSEServerTransport('/messages', res);
-      transports[transport.sessionId] = transport;
-      
-      res.on("close", () => {
-        delete transports[transport.sessionId];
-        console.log(`SSE connection closed: ${transport.sessionId}`);
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined,
+        enableJsonResponse: true,
+        enableDnsRebindingProtection: false,
       });
-      
       await server.connect(transport);
-      console.log(`SSE connection established: ${transport.sessionId}`);
-      
+      await transport.handleRequest(req, res, req.body);
     } catch (error) {
-      console.error('SSE connection error:', error);
-      res.status(500).send('SSE connection failed');
-    }
-  });
-  
-  // 訊息處理端點
-  app.post('/messages', async (req, res) => {
-    const sessionId = req.query.sessionId as string;
-    const transport = transports[sessionId];
-    
-    if (transport) {
-      try {
-        await transport.handlePostMessage(req, res, req.body);
-      } catch (error) {
-        console.error('Message handling error:', error);
-        res.status(500).send('Message handling failed');
-      }
-    } else {
-      res.status(400).send('No transport found for sessionId');
+      console.error('StreamableHTTP error:', error);
+      res.status(500).send('MCP endpoint failed');
     }
   });
   
@@ -801,8 +777,7 @@ async function main() {
       version: '1.0.0',
       endpoints: {
         health: '/health',
-        sse: '/sse',
-        messages: '/messages'
+        mcp: '/mcp'
       }
     });
   });
@@ -812,7 +787,7 @@ async function main() {
   app.listen(port, () => {
     console.log(`Smart Weather MCP Server running on port ${port}`);
     console.log(`Health check: http://localhost:${port}/health`);
-    console.log(`SSE endpoint: http://localhost:${port}/sse`);
+    console.log(`MCP endpoint: http://localhost:${port}/mcp`);
   });
 }
 
