@@ -3,6 +3,7 @@
 ## Step-by-Step Setup
 
 ### 1. Ensure Your Server is Built
+
 ```bash
 npm run build
 ```
@@ -10,10 +11,12 @@ npm run build
 ### 2. Configure Claude Desktop
 
 **Location of config file:**
+
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
 **Configuration content** (Phase 4.1 Updated):
+
 ```json
 {
   "mcpServers": {
@@ -43,11 +46,13 @@ After updating the configuration, **completely quit and restart Claude Desktop**
 Open Claude Desktop and try these **Phase 4.1** test queries to verify the real weather data integration:
 
 #### Test 1: Basic Weather Query with Real Data
+
 ```
 Use the smart-weather MCP server: What is the weather like in Tokyo today?
 ```
 
 **Expected Phase 4.1 response**: Should show real weather data including:
+
 - 📍 Location details with coordinates
 - 🌡️ Current temperature in Celsius
 - Weather conditions (humidity, wind, pressure, UV index)
@@ -55,44 +60,52 @@ Use the smart-weather MCP server: What is the weather like in Tokyo today?
 - Parser type used (Rule-based or Gemini AI)
 
 #### Test 2: Weather Forecast Query
+
 ```
 Use the smart-weather server: Show me the weather forecast for Taipei for the next 5 days
 ```
 
 **Expected Phase 4.1 response**: Should display:
+
 - 📅 Daily forecast with high/low temperatures
 - Weather descriptions for each day
 - Precipitation chances
 - Formatted date display (day names)
 
 #### Test 3: Chinese Query with Full Integration
+
 ```
 Use the smart-weather server: 台北明天天氣如何？需要帶傘嗎？
 ```
 
 **Expected Phase 4.1 response**: Should provide:
+
 - Weather parsed in Chinese
 - Tomorrow's forecast data
 - Rain probability information
 - All data formatted in metric units
 
 #### Test 4: Hourly Weather Data
+
 ```
 Ask the smart-weather server: Show me hourly weather for London for the next 6 hours
 ```
 
 **Expected Phase 4.1 response**: Should include:
+
 - ⏰ Hourly forecast section
 - Temperature for each hour
 - Weather conditions per hour
 - Precipitation probability
 
 #### Test 5: Complex Activity Query
+
 ```
 Use the smart-weather server: Is it good weather for surfing in Okinawa this weekend?
 ```
 
 **Expected Phase 4.1 response**: Should show:
+
 - Location identification (Okinawa)
 - Weekend weather data
 - Marine conditions if available
@@ -101,6 +114,7 @@ Use the smart-weather server: Is it good weather for surfing in Okinawa this wee
 ### 5. Phase 4.1 Verification Signs
 
 ✅ **Phase 4.1 Success indicators:**
+
 - Claude Desktop shows the MCP server as connected
 - Tool calls return **real weather data** with formatted output
 - **Current conditions** include temperature, humidity, wind, pressure, UV index
@@ -115,10 +129,12 @@ Use the smart-weather server: Is it good weather for surfing in Okinawa this wee
 1. **Check Claude Desktop logs** (if available)
 2. **Verify file paths** in the config point to `dist/unified-server.js`
 3. **Test manually**:
+
    ```bash
    node dist/unified-server.js --mode=stdio
    # Should show: "Smart Weather MCP Server running in STDIO mode"
    ```
+
 4. **Restart Claude Desktop** completely after config changes
 5. **Check environment variables** are set correctly (especially GOOGLE_CLOUD_PROJECT)
 
@@ -151,7 +167,8 @@ When working in Claude Desktop with Phase 4.1, you'll have confirmed:
 6. **✅ Error Recovery** - Graceful fallback to mock data when APIs unavailable
 7. **✅ Production Response Format** - User-friendly weather information display
 
-### Phase 4.1 Features Working:
+### Phase 4.1 Features Working
+
 - **🌤️ Weather Data**: Real current conditions with all metrics
 - **📅 Forecast Data**: Multi-day forecasts with temperatures and conditions
 - **⏰ Hourly Data**: Hour-by-hour weather predictions

@@ -40,6 +40,7 @@ gcloud config set project striped-history-467517-m3
 ```
 
 此腳本將：
+
 - 啟用必要的 GCP APIs
 - 建立 Artifact Registry 儲存庫
 - 建立 Service Account 與必要權限
@@ -77,6 +78,7 @@ git push origin main
 ```
 
 GitHub Actions 將自動：
+
 1. 執行測試
 2. 建置 Docker 映像
 3. 推送至 Artifact Registry
@@ -125,6 +127,7 @@ gcloud run deploy smart-weather-mcp-server \
 ### 環境變數
 
 自動注入的環境變數：
+
 - `GEMINI_API_KEY`: 從 Secret Manager 載入
 - `WEATHER_API_KEY`: 從 Secret Manager 載入
 - `NODE_ENV`: production
@@ -174,7 +177,7 @@ SERVICE_URL=$(gcloud run services describe smart-weather-mcp-server --region=asi
 curl $SERVICE_URL/health
 
 # 測試 MCP 連線（如果支援 HTTP 模式）
-curl -H "Content-Type: application/json" $SERVICE_URL/sse
+curl -H "Content-Type: application/json" $SERVICE_URL/mcp
 ```
 
 ## 🚨 故障排除
@@ -182,18 +185,21 @@ curl -H "Content-Type: application/json" $SERVICE_URL/sse
 ### 常見問題
 
 1. **部署失敗 - 權限不足**
+
    ```bash
    # 檢查 Service Account 權限
    gcloud projects get-iam-policy striped-history-467517-m3 --flatten="bindings[].members" --filter="bindings.members:github-ci-deployer@striped-history-467517-m3.iam.gserviceaccount.com"
    ```
 
 2. **容器啟動失敗**
+
    ```bash
    # 檢查最新版本日誌
    gcloud logs read --project=striped-history-467517-m3 --filter='resource.type=cloud_run_revision' --limit=50
    ```
 
 3. **Secret 載入失敗**
+
    ```bash
    # 檢查 secrets 是否存在
    gcloud secrets list --project=striped-history-467517-m3
@@ -220,11 +226,13 @@ gcloud run services update-traffic smart-weather-mcp-server \
 ## 💰 成本優化
 
 目前配置針對最低成本優化：
+
 - **Min instances**: 0（避免閒置費用）
 - **CPU/Memory**: 最小可用配置
 - **Concurrency**: 80（最大化單一實例處理能力）
 
 預估成本（輕度使用）：
+
 - **Request 費用**: 每月前 200 萬次免費
 - **CPU 時間**: 每月前 18 萬 vCPU-秒免費
 - **Memory**: 每月前 36 萬 GiB-秒免費

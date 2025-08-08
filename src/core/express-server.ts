@@ -53,7 +53,9 @@ export class ExpressServer {
     this.globalTransport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined, // Stateless mode for Cloud Run
       enableJsonResponse: true,
-      enableDnsRebindingProtection: false, // Disable for Cloud Run/remote access
+      // MCP spec (2025-06-18) requires Origin validation to prevent DNS rebinding
+      // StreamableHTTP transport provides built-in protection
+      enableDnsRebindingProtection: true,
     });
 
     // Create a single MCP server instance

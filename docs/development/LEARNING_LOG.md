@@ -1,5 +1,44 @@
 # Smart Weather MCP Server 實作學習日誌
 
+## 精簡總覽
+
+本節為整檔精華摘要；詳細脈絡、證據與程式片段請見後續章節與引用檔案。
+
+### 里程碑時間線（單行要點）
+
+- 2025-08-03 — Phase 1 基礎架構：`unified-server.ts` 單一入口 + `--mode=stdio|http`；STDIO 日誌轉 stderr；冷啟 < 800ms。
+- 2025-08-05 — Phase 2 AI 智能：Gemini 解析器 + Query Router；解析 < 500ms，意圖信心 ~92%。
+- 2025-08-06 — Phase 2.1 混合解析：動態閾值 0.5/0.3；中文複雜查詢 100% 成功；規則快路徑 ~1ms。
+- 2025-08-06 — Phase 3.1 天氣 API 客戶端：Google Maps + Weather 客戶端、快取與限流；端到端就緒。
+- 2025-08-07 — Phase 4.1 IQS + Google Weather：誠實透明度（移除模擬資料，提供可行錯誤指引）。
+- 2025-08-07 — Phase 4.2 工具完成：`find_location`、`get_weather_advice`；雙格式輸出（JSON+人類可讀）；zh-TW 語言檢測修復。
+- 2025-08-07/08 — Phase 5.1/5.2 雲端與產線：Cloud Run + StreamableHTTP；平均 ~0.2s；TTL 命中驗證。
+
+### 品質與效能指標（集中呈現）
+
+| 指標 | 目標 | 實測 | 差距 | 備註 |
+|---|---|---|---|---|
+| 平均回應時間 | ≤ 1.5s | ~0.2s | -1.3s | Cloud Run 生產測得 |
+| 解析時間（AI） | ≤ 500ms | < 500ms | 達標 | Gemini 解析 |
+| 路由決策 | < 100ms | < 100ms | 達標 | Query Router |
+| 冷啟動 | ≤ 800ms | ~800ms | 達標 | Cloud Run |
+| 解析成功率 | ≥ 95% | 100% | +5% | 複雜中文修復後 |
+| 測試覆蓋 | ≥ 80% | 90%+ | +10% | 單元+整合 |
+| 快取命中效益 | ≥ 60% | 命中 ~1ms vs API ~200ms | N/A | TTL：5m/30m/7d |
+| AI 後備率 | < 20% | 低於門檻 | 達標 | 動態閾值 0.5/0.3 |
+| 連線 | 穩定 | 穩定 | — | StreamableHTTP |
+
+### 文件導讀
+
+- 錯誤策略與 UX：`docs/development/HONEST_TRANSPARENCY.md`
+- 傳輸模式：`docs/development/TRANSPORT_MODES.md`
+- 設定與部署：`docs/setup/DEPLOYMENT.md`、`docs/setup/CLAUDE_DESKTOP_SETUP.md`
+
+### 編輯原則（套用於全文）
+
+- 每則學習以五欄：問題／決策／實作（檔案+函式引用）／成果（數字）／影響。
+- 長碼塊改為最小片段＋檔案與函式引用；去冗詞與行銷語，保留事實與指標。
+
 ## 使用說明
 
 本檔案記錄專案實作過程中的技術發現、決策過程、問題解決方案和經驗教訓，是持續學習與改善的重要工具。
@@ -49,14 +88,12 @@
 ### 預期挑戰
 
 - MCP SDK 與 Express.js 整合
-- SSE 傳輸在 Cloud Run 環境的穩定性
-- Docker 容器最佳化
 
 ### 實際學習要點 (2025-08-03)
 
 #### 技術發現
 
-- **MCP SDK 雙模式運行**：需要分別支援 HTTP/SSE (Claude Desktop) 和 STDIO (命令列) 兩種傳輸模式
+- **MCP SDK 雙模式運行**：支援 STDIO（Claude Desktop）與 StreamableHTTP（HTTP 事件流 + POST）
 - **TypeScript 類型安全**：MCP SDK 的參數類型需要特殊處理，使用 `as unknown as WeatherQuery` 避免類型衝突
 - **Secret Manager 漸進式採用**：可以實現本地環境變數 + 生產環境 Secret Manager 的漸進式遷移
 - **Express + MCP 雙伺服器架構**：HTTP REST API 和 MCP STDIO 可以共存，滿足不同客戶端需求
@@ -64,7 +101,7 @@
 #### 決策記錄
 
 - **決策**：建立 `mcp-stdio.ts` 專門處理 Claude Desktop 整合
-- **原因**：Claude Desktop 需要 STDIO 傳輸，與 HTTP/SSE 服務分離更清晰
+- **原因**：Claude Desktop 需要 STDIO 傳輸，與 HTTP 事件流服務分離更清晰
 - **影響**：需要維護兩個入口點，但職責更清楚
 
 #### 問題解決
@@ -93,7 +130,7 @@
 
 #### 技術發現
 
-- **統一伺服器架構**：成功實現單一入口點支援多種傳輸模式（STDIO、HTTP/SSE）
+- **統一伺服器架構**：成功實現單一入口點支援多種傳輸模式（STDIO、HTTP Streamable）
 - **命令列參數解析**：使用 `--mode=stdio|http` 切換傳輸模式，無需重寫代碼
 - **STDIO 日誌分離**：關鍵發現 - STDIO 模式需要所有日誌輸出到 stderr，避免污染 JSON-RPC stdout
 - **Claude Desktop 相容性**：完美解決 Claude Desktop 的 JSON 解析錯誤問題
@@ -387,7 +424,7 @@
 
 ### 1. Memory Management
 
-**Optimization**: SSE connection cleanup prevents memory leaks
+**Optimization**: 事件流連線清理避免記憶體洩漏
 
 - ⚡ **Implementation**: Automatic cleanup every 5 minutes
 - ⚡ **Thresholds**: 30-minute inactivity triggers cleanup
@@ -555,35 +592,19 @@ context: "location: New York, timeframe: 6 hours"
 
 ## 🔍 Phase 4.1 Honest Transparency Implementation (August 2025)
 
-### Strategic Decision: Replacing Mock Data with Transparent Errors
+> TL;DR
 
-**Achievement**: Successfully implemented "Honest Transparency" approach, eliminating mock data fallbacks in favor of clear error communication
+- 原則：移除模擬資料，以透明錯誤＋可行指引取代（詳見 `docs/development/HONEST_TRANSPARENCY.md`）。
+- 錯誤格式：`code=LOCATION_NOT_SUPPORTED`＋清楚訊息與替代建議。
+- 影響：錯誤處理耗時 -50ms、除錯時間 -60%、覆蓋監測更清楚。
 
-**Context**: During Phase 4.1 Google Weather API integration, discovered that mock data fallbacks were creating confusion about service capabilities
+### 摘要與範例
 
-### Key Technical Learnings
+完整細節已移至：`docs/development/HONEST_TRANSPARENCY.md`。
 
-#### 1. User Experience Design Philosophy
-
-**Discovery**: Users prefer transparent limitations over misleading mock data
-
-- ✅ **User Feedback**: Clear error messages with actionable suggestions significantly improve UX
-- ✅ **Trust Building**: Honest communication about API limitations increases user confidence
-- ✅ **Support Efficiency**: Transparent errors reduce user confusion and support requests
-
-**Before (Mock Fallback)**:
+唯一錯誤樣式（簡化示例）：
 
 ```typescript
-// Problematic approach - misleading users
-if (apiError.status === 404) {
-  return this.createMockWeatherResponse(location);
-}
-```
-
-**After (Honest Transparency)**:
-
-```typescript
-// Honest approach - transparent error communication
 if (apiError.status === 404) {
   const apiError = new Error('Location not supported by Google Weather API');
   apiError.name = 'LOCATION_NOT_SUPPORTED';
@@ -591,81 +612,13 @@ if (apiError.status === 404) {
 }
 ```
 
-#### 2. Error Message Design Patterns
+## 🚀 Phase 5.1 Cloud Run StreamableHTTP Implementation (August 7, 2025)
 
-**Best Practices Discovered**:
+> TL;DR
 
-- ✅ **Clear Problem Statement**: "Weather information is not available for [Location]"
-- ✅ **Context Explanation**: "This location may not be covered by our weather data provider"  
-- ✅ **Actionable Guidance**: "Try a nearby major city or different location"
-- ✅ **Consistent Structure**: All error responses follow same format
-
-**Implementation Pattern**:
-
-```typescript
-private createLocationNotSupportedResponse(location: Location, details: string): WeatherAPIResponse<any> {
-  const locationDisplay = location.name || `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
-  
-  return {
-    success: false,
-    error: {
-      code: 'LOCATION_NOT_SUPPORTED',
-      message: `Weather information is not available for ${locationDisplay}`,
-      details: `${details}. This location may not be covered by our weather data provider. Try a nearby major city or different location.`
-    },
-    timestamp: new Date().toISOString()
-  };
-}
-```
-
-#### 3. System Architecture Benefits
-
-**Technical Advantages Realized**:
-
-- ✅ **Simplified Maintenance**: No mock data generation logic to maintain
-- ✅ **Clear Debugging**: Error paths are explicit and traceable
-- ✅ **Production Clarity**: No confusion between real and test data
-- ✅ **Scalable Approach**: Automatic support when API coverage expands
-
-**Code Quality Impact**:
-
-- 📉 **Reduced Complexity**: Removed 200+ lines of mock data generation code
-- 📈 **Improved Testability**: Error paths are easier to test than mock data scenarios  
-- 📈 **Better Monitoring**: Clear metrics on API coverage vs actual errors
-- 📈 **Future-Proof Design**: No technical debt from mock data to clean up
-
-### Implementation Challenges & Solutions
-
-#### Challenge 1: Backward Compatibility
-
-**Problem**: Existing tools expected mock data fallbacks
-**Solution**: Updated all weather service methods to handle errors consistently
-**Result**: ✅ Seamless transition with improved error handling
-
-#### Challenge 2: User Experience Concerns  
-
-**Problem**: Concern that errors might frustrate users
-**Solution**: Carefully crafted error messages with actionable guidance
-**Result**: ✅ Transparent communication actually improved user satisfaction
-
-#### Challenge 3: Testing Strategy
-
-**Problem**: Need to test error scenarios without breaking existing tests
-**Solution**: Created comprehensive test scenarios for both supported and unsupported locations
-**Result**: ✅ Full test coverage for transparent error handling
-
-### Performance & Operational Impact
-
-**Metrics Improvements**:
-
-- 📈 **Response Time**: Eliminated mock data generation overhead (~50ms faster for error cases)
-- 📈 **Memory Usage**: Reduced memory footprint by removing mock data caching
-- 📈 **Debugging Efficiency**: Error investigation time reduced by ~60% due to clarity
-- 📈 **API Cost Clarity**: Clear distinction between real API calls vs errors
-
-**Monitoring Enhancements**:
-
-## 🚀 Phase 5.1 Cloud Run SSE Implementation (August 7, 2025)
+- 採用 `StreamableHTTPServerTransport`，統一 `/mcp` 端點處理 GET（事件流）/ POST（訊息），無狀態模式相容 Cloud Run。
+- 標頭由傳輸層管理，避免「Cannot set headers after they are sent」衝突。
+- 成果：冷啟 ~800ms、事件流穩定、並發連線正常（詳見 `docs/development/TRANSPORT_MODES.md`）。
 
 ### Strategic Decision: StreamableHTTPServerTransport over SSEServerTransport
 
@@ -684,7 +637,7 @@ private createLocationNotSupportedResponse(location: Location, details: string):
 - ✅ **mcp-remote Compatibility**: Works seamlessly with Claude Desktop via mcp-remote
 - ✅ **n8n Integration**: SSE streaming works for workflow automation
 
-**Implementation Pattern**:
+**Implementation Pattern**：
 
 ```typescript
 // Correct approach - StreamableHTTPServerTransport
@@ -695,7 +648,7 @@ this.globalTransport = new StreamableHTTPServerTransport({
 });
 ```
 
-#### 2. SSE Header Management Issue
+#### 2. Header Management Issue
 
 **Problem**: Manual header setting conflicted with SDK's internal header management
 
@@ -710,7 +663,7 @@ res.writeHead(200, {
   'Content-Type': 'text/event-stream',
   'Cache-Control': 'no-cache',
 });
-const transport = new SSEServerTransport('/sse', res);
+const transport = new SSEServerTransport('/mcp', res);
 
 // After - Transport manages headers (CORRECT)
 const transport = new StreamableHTTPServerTransport(options);
@@ -719,7 +672,7 @@ await transport.handleRequest(req, res, req.body);
 
 #### 3. Unified Endpoint Architecture
 
-**Best Practice**: Single `/sse` endpoint for all MCP communication
+**Best Practice**: Single `/mcp` endpoint for all MCP communication
 
 - ✅ **GET Requests**: Establish SSE stream for server-to-client messages
 - ✅ **POST Requests**: Handle client-to-server MCP messages
@@ -729,7 +682,7 @@ await transport.handleRequest(req, res, req.body);
 
 ```typescript
 // Unified endpoint handling both GET and POST
-this.app.all('/sse', async (req, res) => {
+this.app.all('/mcp', async (req, res) => {
   await this.globalTransport.handleRequest(req, res, req.body);
 });
 ```
@@ -748,7 +701,7 @@ docker build --platform linux/amd64 -t image:tag .
 **Production Metrics**:
 
 - ✅ **Cold Start**: ~800ms on Cloud Run
-- ✅ **SSE Connection**: Stable long-lived connections
+- ✅ **Event Stream Connection**: Stable long-lived connections
 - ✅ **Concurrent Connections**: Handles multiple clients without session conflicts
 - ✅ **Memory Usage**: Stateless mode reduces memory footprint
 
@@ -768,7 +721,7 @@ docker build --platform linux/amd64 -t image:tag .
   "mcpServers": {
     "smart-weather-cloud": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "https://url/sse"]
+      "args": ["-y", "mcp-remote", "https://url/mcp"]
     }
   }
 }
@@ -2018,7 +1971,7 @@ private detectLanguage(query: string): string {
 
 **組織原則**:
 
-```
+```text
 tests/
 ├── unit/           # 單元測試
 ├── integration/    # 整合測試  
