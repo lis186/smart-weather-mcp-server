@@ -1,0 +1,27 @@
+{
+  "displayName": "Cloud Run 5xx error rpm > 3 (5m)",
+  "notificationChannels": ["projects/striped-history-467517-m3/notificationChannels/2969167425332044661"],
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "5xx error absolute rate",
+      "conditionThreshold": {
+        "filter": "resource.type=\"cloud_run_revision\" AND resource.label.\"service_name\"=\"smart-weather-mcp-server\" AND resource.label.\"location\"=\"asia-east1\" AND metric.type=\"run.googleapis.com/request_count\" AND metric.label.\"response_code_class\"=\"5xx\"",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_RATE",
+            "crossSeriesReducer": "REDUCE_SUM",
+            "groupByFields": ["resource.label.\"service_name\""]
+          }
+        ],
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0.05,
+        "duration": "300s",
+        "trigger": { "count": 1 }
+      }
+    }
+  ]
+}
+
+

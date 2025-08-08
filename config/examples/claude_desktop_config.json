@@ -8,9 +8,10 @@
       ],
       "env": {
         "NODE_ENV": "development",
-        "GEMINI_API_KEY": "AIzaSyBwckixxEeVYE6o0VwI15hWXCAfjq-nqMM",
-        "WEATHER_API_KEY": "AIzaSyDTrMoVpq8yGL7SMbWRrrS7w7qw1CdzEwo",
-        "GOOGLE_CLOUD_PROJECT": "striped-history-467517-m3"
+        "GEMINI_API_KEY": "<your-gemini-key>",
+        "WEATHER_API_KEY": "<your-weather-key>",
+        "GOOGLE_CLOUD_PROJECT": "<your-gcp-project>",
+        "GEMINI_DISABLED": "false"
       }
     }
   }
