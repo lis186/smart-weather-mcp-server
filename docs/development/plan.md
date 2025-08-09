@@ -448,8 +448,8 @@ async parseQuery(query) {
   - 複雜路徑（search_weather：沖繩明天天氣預報 衝浪條件 海浪高度 風速）200 次（序列化）：P50 ≈ 2508ms、P95 ≈ 3155ms、成功 199/199（使用官方 MCP HTTP Client 呼叫）
   - 注意：直接用 HTTP POST 模擬 JSON-RPC 需滿足 StreamableHTTP 的 Accept/Origin 規則，建議使用 `scripts/mcp-http-call.ts`
 - STDIO（Claude Desktop）
-  - [ ] 以 `--mode=stdio` 驗證三個工具：`search_weather`、`find_location`、`get_weather_advice` 的雙格式輸出
-  - [ ] 視需要更新 `config/examples/claude_desktop_config.json`
+  - [x] 以 `--mode=stdio` 驗證三個工具：`search_weather`、`find_location`、`get_weather_advice` 的雙格式輸出（`npm run test:stdio-smoke`）
+  - [x] 視需要更新 `config/examples/claude_desktop_config.json`（目前無需更動）
 - 手動部署與回滾
   - [ ] 使用 `scripts/quick-deploy.sh` 部署新修訂
   - [ ] 10% 金絲雀切流並觀察指標 → 正常後提升至 100%
