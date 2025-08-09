@@ -31,7 +31,7 @@
       },
       "context": {
         "type": "string",
-        "description": "Additional preferences or context (optional)"
+        "description": "Additional preferences, constraints, or conversation context (optional)"
       }
     },
     "required": ["query"]
