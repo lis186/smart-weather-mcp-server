@@ -13,16 +13,22 @@ fi
 echo "Applying branch protection to $REPO: main"
 
 # Basic PR requirements
+# IMPORTANT: Status check names must match the actual check run contexts.
+# For GitHub Actions, it is typically "<workflow name> / <job id>".
+# Our workflow is named "STDIO zh smoke" and job id is "stdio-zh-smoke".
+REQUIRED_CHECKS='["STDIO zh smoke / stdio-zh-smoke"]'
+
 gh api -X PUT \
   -H "Accept: application/vnd.github+json" \
   repos/$REPO/branches/main/protection \
   -f required_status_checks.strict=true \
-  --raw-field required_status_checks.contexts='["build","test","STDIO zh smoke"]' \
+  --raw-field required_status_checks.contexts=${REQUIRED_CHECKS} \
   -f enforce_admins=true \
   -f required_pull_request_reviews.dismiss_stale_reviews=true \
   -f required_pull_request_reviews.require_code_owner_reviews=true \
   -f required_pull_request_reviews.required_approving_review_count=1 \
-  -f restrictions=''
+  -f allow_deletions=false \
+  -f allow_force_pushes=false
 
 echo "Restricting direct push to main (allow only GitHub Actions)"
 gh api -X PATCH \
