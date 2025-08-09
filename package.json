@@ -20,6 +20,7 @@
     "test:coverage": "jest --coverage",
     "test:verbose": "JEST_VERBOSE=true jest --verbose",
     "test:stdio-smoke": "npm run build && node tests/test-mcp-client.js",
+    "test:stdio-zh": "npm run build && node tests/test-mcp-client-zh.js",
     "demo:parser": "tsx examples/gemini-parser-demo.ts",
     "demo:phase2": "tsx examples/phase2-demo.ts"
   },

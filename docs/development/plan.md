@@ -416,25 +416,25 @@ async parseQuery(query) {
   scripts/load-test.sh --url https://<YOUR_CLOUD_RUN_URL> --type health --count 50 --concurrency 5
   ```
   
-  2) 熱路徑（規則為主）200 次
+  1) 熱路徑（規則為主）200 次
   
   ```bash
   scripts/load-test.sh --url https://<YOUR_CLOUD_RUN_URL> --type mcp-weather --count 200 --concurrency 20
   ```
   
-  3) 複雜路徑（傾向觸發 AI）200 次
+  1) 複雜路徑（傾向觸發 AI）200 次
   
   ```bash
   scripts/load-test.sh --url https://<YOUR_CLOUD_RUN_URL> --type mcp-weather-complex --count 200 --concurrency 10
   ```
   
-  4) 多語地點搜尋（選擇性）
+  1) 多語地點搜尋（選擇性）
   
   ```bash
   scripts/load-test.sh --url https://<YOUR_CLOUD_RUN_URL> --type mcp-location --count 200 --concurrency 20
   ```
   
-  5) AI 不可用（關閉 Gemini 後重跑 2) 與 3)）
+  1) AI 不可用（關閉 Gemini 後重跑 2) 與 3)）
   
   - 以 `GEMINI_DISABLED=true` 部署新版或暫時變更修訂環境變數（建議使用新修訂）
   - 重新執行上述 2) 與 3)，比較 P95 與成功率、確認降級訊息
