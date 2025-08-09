@@ -1,10 +1,36 @@
+# Development Principles (Augment)
+
+## Main protection & PR-only workflow
+
+- Do not commit/push directly to `main`
+- All changes must go through feature branches and Pull Requests
+- Enforce via GitHub Branch Protection Rules:
+  - Require PR before merge; code owner reviews required
+  - Require status checks (build, test, lint, STDIO zh smoke)
+  - Require branch up to date with base before merging
+  - Restrict who can push to `main` (allow only GitHub Apps e.g. github-actions)
+  - Disallow force pushes and deletions
+
+## Repository hygiene
+
+- CODEOWNERS defines mandatory reviewers per path
+- PR template must include risks and rollback plan
+- Conventional commits for consistency
+- CI should fail on direct push to `main` (educational guard)
+
+## Rationale
+
+- Small batches and reversible design (see Universal Development Principles)
+- Ensures peer review, traceability, and stable mainline
+
 ---
 description: Universal development methodology and principles for rapid, effective software delivery with continuous learning and improvement
 globs:
+- '**/*'
 alwaysApply: true
 ---
 
-# Universal Development Principles
+## Universal Development Principles
 
 ## Core Philosophy
 

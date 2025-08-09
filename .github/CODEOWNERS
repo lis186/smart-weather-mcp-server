@@ -1,0 +1,8 @@
+# Require review from owners before merge
+# Adjust handles to your team as needed
+
+*       @lis186
+src/**  @lis186
+scripts/** @lis186
+.github/** @lis186
+
