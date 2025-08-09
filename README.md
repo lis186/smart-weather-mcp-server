@@ -2,11 +2,13 @@
 
 🌤️ AI-powered weather queries for Claude Desktop and MCP clients
 
+[![STDIO zh smoke](https://github.com/lis186/smart-weather-mcp-server/actions/workflows/stdio-zh-smoke.yml/badge.svg)](https://github.com/lis186/smart-weather-mcp-server/actions/workflows/stdio-zh-smoke.yml)
+
 ## What it does
 
 Query weather in natural language through Claude Desktop or any MCP client. Supports Chinese, Japanese, and English.
 
-**🟢 Production Ready** - Live at https://smart-weather-mcp-server-891745610397.asia-east1.run.app
+**🟢 Production Ready** - Live at `https://smart-weather-mcp-server-891745610397.asia-east1.run.app`
 
 ## Quick Start
 
@@ -53,12 +55,15 @@ Use the hosted version via mcp-remote:
 ## Available Tools
 
 ### search_weather
+
 Query current weather, forecasts, or historical data for any location.
 
 ### find_location  
+
 Resolve ambiguous location names and get precise coordinates.
 
 ### get_weather_advice
+
 Get personalized recommendations based on weather conditions.
 
 ## Development
@@ -77,6 +82,14 @@ npm run dev:http         # HTTP mode on port 8080
 # Production
 npm start                # Auto-detect mode
 ```
+
+### Local STDIO smoke tests (Chinese)
+
+- One-shot English baseline: `npm run test:stdio-smoke`
+- Chinese samples (Taipei/Okinawa): `npm run test:stdio-zh`
+- CI will run the Chinese STDIO smoke on PR and main if secrets exist:
+  - `WEATHER_API_KEY`, `GOOGLE_MAPS_API_KEY`
+  - Gemini is disabled in CI (`GEMINI_DISABLED=true`) to validate rule/hybrid paths only
 
 ## Deployment
 
