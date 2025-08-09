@@ -1,0 +1,45 @@
+name: STDIO zh smoke
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  stdio-zh-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Map secrets to env to avoid using `secrets` in `if` conditions (linter compatibility)
+      WEATHER_API_KEY: ${{ secrets.WEATHER_API_KEY }}
+      GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run zh STDIO smoke (requires API keys)
+        if: ${{ env.WEATHER_API_KEY != '' && env.GOOGLE_MAPS_API_KEY != '' }}
+        env:
+          NODE_ENV: development
+          GEMINI_DISABLED: 'true'
+          WEATHER_API_KEY: ${{ env.WEATHER_API_KEY }}
+          GOOGLE_MAPS_API_KEY: ${{ env.GOOGLE_MAPS_API_KEY }}
+        run: npm run test:stdio-zh
+
+      - name: Skip (missing secrets)
+        if: ${{ !(env.WEATHER_API_KEY != '' && env.GOOGLE_MAPS_API_KEY != '' ) }}
+        run: |
+          echo "Skipping zh STDIO smoke: please set repository secrets WEATHER_API_KEY and GOOGLE_MAPS_API_KEY."
+
